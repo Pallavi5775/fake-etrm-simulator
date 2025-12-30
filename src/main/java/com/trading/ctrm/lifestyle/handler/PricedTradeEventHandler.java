@@ -16,7 +16,7 @@ public class PricedTradeEventHandler implements TradeEventHandler {
 
         System.out.println(
             "Trade PRICED using forward curve: " +
-            trade.getInstrument().getSymbol()
+            trade.getInstrument().getInstrumentCode()
         );
     }
 }

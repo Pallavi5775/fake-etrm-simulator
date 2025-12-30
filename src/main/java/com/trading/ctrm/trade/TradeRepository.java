@@ -1,6 +1,6 @@
 package com.trading.ctrm.trade;
 
-import org.springframework.boot.autoconfigure.data.web.SpringDataWebProperties.Pageable;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -41,18 +41,18 @@ public interface TradeRepository
             TradeStatus status
     );
 
-    @Query("""
+@Query("""
 select t from Trade t
 where (:desk is null or t.portfolio = :desk)
   and (:status is null or t.status = :status)
-  and (:instrument is null or t.instrument.symbol = :instrument)
+  and (:instrumentCode is null or t.instrument.instrumentCode = :instrumentCode)
   and (:counterparty is null or t.counterparty = :counterparty)
 """)
 List<Trade> findByFilters(
-    String desk,
-    TradeStatus status,
-    String instrument,
-    String counterparty
+        @Param("desk") String desk,
+        @Param("status") TradeStatus status,
+        @Param("instrumentCode") String instrumentCode,
+        @Param("counterparty") String counterparty
 );
 
 
@@ -61,7 +61,10 @@ select t from Trade t
 where (:desk is null or t.portfolio = :desk)
 order by t.createdAt desc
 """)
-List<Trade> findSampleTrades(String desk, int pageable);
+List<Trade> findSampleTrades(
+        @Param("desk") String desk,
+        Pageable pageable
+);
 
 
     // 🔹 NEW — bulk status update (Endur-style lifecycle update)

@@ -1,5 +1,7 @@
 package com.trading.ctrm.trade;
 
+import java.math.BigDecimal;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -11,13 +13,13 @@ public class CreditLimit {
 
     private String counterparty;
 
-    private double limitAmount;
+    private BigDecimal limitAmount;
 
     public String getCounterparty() {
         return counterparty;
     }
 
-    public double getLimitAmount() {
+    public BigDecimal getLimitAmount() {
         return limitAmount;
     }
 }

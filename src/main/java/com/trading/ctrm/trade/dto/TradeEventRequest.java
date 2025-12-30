@@ -1,6 +1,9 @@
 package com.trading.ctrm.trade.dto;
 
 import com.trading.ctrm.trade.TradeEventType;
+
+import java.math.BigDecimal;
+
 import com.trading.ctrm.trade.EnumType.BuySell;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,10 +26,10 @@ public class TradeEventRequest {
     private String counterparty;
 
     @Positive
-    private double quantity;
+    private BigDecimal quantity;
 
     @Positive
-    private double price;
+    private BigDecimal price;
 
     @NotNull
     private BuySell buySell;
@@ -76,19 +79,19 @@ public class TradeEventRequest {
         this.counterparty = counterparty;
     }
 
-    public double getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(double quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 

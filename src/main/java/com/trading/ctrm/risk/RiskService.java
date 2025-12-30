@@ -1,5 +1,8 @@
 package com.trading.ctrm.risk;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import org.springframework.stereotype.Service;
 
 import com.trading.ctrm.trade.Trade;
@@ -7,13 +10,18 @@ import com.trading.ctrm.trade.Trade;
 @Service
 public class RiskService {
 
-    public double exposure(Trade trade, double marketPrice) {
-        return trade.getQuantity() * marketPrice;
-    }
+   public BigDecimal exposure(Trade trade, BigDecimal marketPrice) {
+    return trade.getQuantity().multiply(marketPrice);
+}
 
-    public double creditExposure(
-            Trade trade, double marketPrice, double ratingFactor) {
-        return exposure(trade, marketPrice) * ratingFactor;
-    }
+    public BigDecimal creditExposure(
+        Trade trade,
+        BigDecimal marketPrice,
+        BigDecimal ratingFactor
+) {
+    return exposure(trade, marketPrice)
+            .multiply(ratingFactor)
+            .setScale(2, RoundingMode.HALF_UP);
+}
 }
 

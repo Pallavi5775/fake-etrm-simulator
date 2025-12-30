@@ -1,5 +1,6 @@
 package com.trading.ctrm.trade;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -27,7 +28,7 @@ public class PricingController {
     }
 
     @GetMapping("/mtm/{tradeId}")
-    public double mtm(@PathVariable String tradeId) {
+    public BigDecimal mtm(@PathVariable String tradeId) {
         var trade = tradeRepo.findByTradeId(tradeId)
                 .orElseThrow(() ->
                         new RuntimeException("Trade not found: " + tradeId));

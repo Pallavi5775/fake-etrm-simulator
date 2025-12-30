@@ -39,7 +39,7 @@ public class TradeQueryController {
     TradeResponseDto dto = new TradeResponseDto();
 
     dto.setTradeId(trade.getTradeId());
-    dto.setInstrumentSymbol(trade.getInstrument().getSymbol());
+    dto.setInstrumentSymbol(trade.getInstrument().getInstrumentCode());
     dto.setPortfolio(trade.getPortfolio());
     dto.setCounterparty(trade.getCounterparty());
     dto.setQuantity(trade.getQuantity());

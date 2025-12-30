@@ -1,38 +1,69 @@
 package com.trading.ctrm.instrument;
 
-import com.trading.ctrm.common.BaseEntity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(
-    name = "instruments",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "uk_instrument_symbol", columnNames = "symbol")
-    }
-)
-public class Instrument extends BaseEntity {
+@Table(name = "instruments")
+@Inheritance(strategy = InheritanceType.JOINED)
+public abstract class Instrument {
 
-    @Column(name = "symbol", nullable = false, length = 50, updatable = false)
-    private String symbol;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true, nullable = false)
+    private String instrumentCode;   // POWER_JAN25
+
+    private String commodity;         // POWER, GAS
+    private String currency;          // EUR
+    private String unit;              // MWh
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "instrument_type", nullable = false, length = 20)
-    private InstrumentType type;
+    private InstrumentType instrumentType;
 
-    protected Instrument() {
-        // JPA only
+    /* ===== Getters / Setters ===== */
+
+    public Long getId() {
+        return id;
     }
 
-    public Instrument(String symbol, InstrumentType type) {
-        this.symbol = symbol;
-        this.type = type;
+    public String getInstrumentCode() {
+        return instrumentCode;
     }
 
-    public String getSymbol() {
-        return symbol;
+    public void setInstrumentCode(String instrumentCode) {
+        this.instrumentCode = instrumentCode;
     }
 
-    public InstrumentType getType() {
-        return type;
+    public String getCommodity() {
+        return commodity;
+    }
+
+    public void setCommodity(String commodity) {
+        this.commodity = commodity;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public String getUnit() {
+        return unit;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    public InstrumentType getInstrumentType() {
+        return instrumentType;
+    }
+
+    protected void setInstrumentType(InstrumentType instrumentType) {
+        this.instrumentType = instrumentType;
     }
 }

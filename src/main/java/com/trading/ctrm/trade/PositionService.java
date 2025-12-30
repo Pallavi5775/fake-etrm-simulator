@@ -1,5 +1,7 @@
 package com.trading.ctrm.trade;
 
+import java.math.BigDecimal;
+
 import org.springframework.stereotype.Service;
 
 import com.trading.ctrm.common.PortfolioPosition;
@@ -26,19 +28,18 @@ public class PositionService {
             new PortfolioPosition(
                 portfolio,
                 instrument,
-                0.0
+                BigDecimal.ZERO
             )
         );
 
-    double signedQty =
+    BigDecimal signedQty =
             trade.getBuySell() == BuySell.BUY
                     ? trade.getQuantity()
-                    : -trade.getQuantity();
+                    : trade.getQuantity().negate();
 
     position.setNetQuantity(
-            position.getNetQuantity() + signedQty
-    );
-
+        position.getNetQuantity().add(signedQty)
+);
     repo.save(position);
 }
 

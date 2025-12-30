@@ -1,5 +1,7 @@
 package com.trading.ctrm.common;
 
+import java.math.BigDecimal;
+
 import com.trading.ctrm.instrument.Instrument;
 import jakarta.persistence.*;
 
@@ -20,13 +22,18 @@ public class PortfolioPosition {
     private Instrument instrument;
 
     @Column(name = "net_quantity", nullable = false)
-    private double netQuantity;
+    private BigDecimal netQuantity;
+
+
+    public String getInstrumentCode() {
+    return instrument.getInstrumentCode();
+}
 
     // ✅ Required by JPA
     protected PortfolioPosition() {
     }
 
-    public PortfolioPosition(String portfolio, Instrument instrument, double netQuantity) {
+    public PortfolioPosition(String portfolio, Instrument instrument, BigDecimal netQuantity) {
         this.portfolio = portfolio;
         this.instrument = instrument;
         this.netQuantity = netQuantity;
@@ -54,11 +61,11 @@ public class PortfolioPosition {
         this.instrument = instrument;
     }
 
-    public double getNetQuantity() {
+    public BigDecimal getNetQuantity() {
         return netQuantity;
     }
 
-    public void setNetQuantity(double netQuantity) {
+    public void setNetQuantity(BigDecimal netQuantity) {
         this.netQuantity = netQuantity;
     }
 }

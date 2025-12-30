@@ -1,5 +1,7 @@
 package com.trading.ctrm.credit;
 
+import java.math.BigDecimal;
+
 import org.springframework.stereotype.Service;
 
 import com.trading.ctrm.trade.CreditLimit;
@@ -15,19 +17,19 @@ public class CreditService {
         this.limitRepo = limitRepo;
     }
 
-    public void checkCredit(Trade trade, double marketPrice) {
+    public void checkCredit(Trade trade, BigDecimal marketPrice) {
 
         CreditLimit limit = limitRepo
                 .findByCounterparty(trade.getCounterparty())
                 .orElseThrow(() ->
                         new RuntimeException("No credit limit set"));
 
-        double exposure = trade.getQuantity() * marketPrice;
+        BigDecimal exposure = trade.getQuantity().multiply(marketPrice);
 
-        if (exposure > limit.getLimitAmount()) {
-            throw new RuntimeException(
-                    "CREDIT LIMIT BREACH for " +
-                            trade.getCounterparty());
-        }
+        if (exposure.compareTo(limit.getLimitAmount()) > 0) {
+    throw new RuntimeException(
+            "CREDIT LIMIT BREACH for " + trade.getCounterparty()
+    );
+}
     }
 }

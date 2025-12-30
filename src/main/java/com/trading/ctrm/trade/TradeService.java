@@ -2,9 +2,14 @@ package com.trading.ctrm.trade;
 
 import org.springframework.stereotype.Service;
 
+import com.trading.ctrm.deals.DealTemplate;
+import com.trading.ctrm.deals.DealTemplateRepository;
 import com.trading.ctrm.instrument.Instrument;
 import com.trading.ctrm.lifestyle.TradeLifecycleEngine;
 import com.trading.ctrm.trade.dto.TradeEventRequest;
+
+import jakarta.transaction.Transactional;
+import org.springframework.lang.NonNull;
 
 @Service
 public class TradeService {
@@ -13,17 +18,20 @@ public class TradeService {
     private final InstrumentRepository instrumentRepository;
     private final PositionService positionService;
     private final TradeLifecycleEngine tradeLifecycleEngine;
+    private final DealTemplateRepository templateRepo;
 
     public TradeService(
             TradeRepository tradeRepository,
             InstrumentRepository instrumentRepository,
             PositionService positionService,
-            TradeLifecycleEngine tradeLifecycleEngine
+            TradeLifecycleEngine tradeLifecycleEngine,
+            DealTemplateRepository templateRepo
     ) {
         this.tradeRepository = tradeRepository;
         this.instrumentRepository = instrumentRepository;
         this.positionService = positionService;
         this.tradeLifecycleEngine = tradeLifecycleEngine;
+        this.templateRepo = templateRepo;
     }
 
     public Trade bookTrade(TradeEventRequest req) {
@@ -32,11 +40,8 @@ public class TradeService {
         }
 
         Instrument instrument = instrumentRepository
-                .findBySymbol(req.getInstrumentSymbol())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Instrument not found: " + req.getInstrumentSymbol())
-                );
+                .findByInstrumentCode(req.getInstrumentSymbol());
+                
 
         Trade trade = new Trade();
         trade.setTradeId(req.getTradeId());
@@ -63,6 +68,35 @@ public class TradeService {
         positionService.updatePosition(saved);
         return saved;
     }
+    
+
+
+    @Transactional
+    public Trade bookFromTemplate(@NonNull Long templateId) {
+
+        DealTemplate template = templateRepo.findById(templateId)
+                .orElseThrow(() -> new IllegalArgumentException("DealTemplate not found"));
+
+        Trade trade = new Trade();
+
+        // 🔑 CORE FIX: bind Instrument entity
+        trade.setInstrument(template.getInstrument());
+
+        // Defaults from template
+        trade.setQuantity(template.getDefaultQuantity());
+        trade.setPrice(template.getDefaultPrice());
+
+        // Status always starts as NEW
+        trade.setStatus(TradeStatus.CREATED);
+
+        // Optional: auto-approval logic
+        if (template.isAutoApprovalAllowed()) {
+            trade.setStatus(TradeStatus.APPROVED);
+        }
+
+        return tradeRepository.save(trade);
+    }
+
 
     public Trade applyEvent(String tradeId, TradeEventType eventType) {
 

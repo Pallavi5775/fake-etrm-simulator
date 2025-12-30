@@ -1,5 +1,7 @@
 package com.trading.ctrm.pricing;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 import org.springframework.stereotype.Service;
@@ -29,15 +31,15 @@ public class PricingService {
     public double getForwardPrice(String symbol, LocalDate date) {
 
         Instrument instrument = instrumentRepo
-            .findBySymbol(symbol)
-            .orElseThrow(() -> new IllegalArgumentException("Invalid instrument"));
+            .findByInstrumentCode(symbol);
+            
 
         return curveRepo.findByInstrumentAndDeliveryDate(instrument, date)
                    .map(ForwardCurve::getPrice)
                    .orElseThrow(() -> new IllegalStateException("No curve found"));
     }
 
-    public double calculateMTM(Trade trade, LocalDate deliveryDate) {
+    public BigDecimal calculateMTM(Trade trade, LocalDate deliveryDate) {
 
         // 1️⃣ Fetch forward curve for the trade’s instrument
         ForwardCurve curve = curveRepo
@@ -48,17 +50,27 @@ public class PricingService {
             .orElseThrow(() ->
                 new RuntimeException(
                     "Forward curve not found for "
-                    + trade.getInstrument().getSymbol()
+                    + trade.getInstrument().getInstrumentCode()
                     + " on " + deliveryDate
                 ));
 
         // 2️⃣ Signed quantity
-        double signedQty =
-                trade.getBuySell() == BuySell.BUY
-                        ? trade.getQuantity()
-                        : -trade.getQuantity();
+        BigDecimal signedQty =
+            trade.getBuySell() == BuySell.BUY
+                    ? trade.getQuantity()
+                    : trade.getQuantity().negate();
 
-        // 3️⃣ MTM calculation
-        return (curve.getPrice() - trade.getPrice()) * signedQty;
-    }
+            // 3️⃣ MTM calculation
+            BigDecimal pnl =
+            BigDecimal.valueOf(curve.getPrice())
+                    .subtract(trade.getPrice())
+                    .multiply(signedQty)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+
+            return pnl;        
+
+        }
+
+        
 }

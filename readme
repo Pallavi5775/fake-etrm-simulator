@@ -1,0 +1,19 @@
+Step 1️⃣ Instrument modeling ✅ (now)
+
+Power Forward
+
+Renewable PPA
+
+Step 2️⃣ Deal Templates
+
+Each template references one instrument
+
+No pricing yet
+
+Step 3️⃣ Pricing Engines
+
+One per instrument type
+
+Step 4️⃣ MTM-based approvals
+
+TPM + USDR consume MTM

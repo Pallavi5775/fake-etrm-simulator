@@ -1,10 +1,10 @@
 package com.trading.ctrm.instrument;
 
 public enum InstrumentType {
-    POWER,
-    GAS,
-    OIL,
-    COAL,
-    EMISSION,
+    POWER_FORWARD,
+    RENEWABLE_PPA,
+    GAS_FORWARD,
+    COMMODITY_SWAP,
+    OPTION,
     FREIGHT
 }

@@ -1,6 +1,8 @@
 package com.trading.ctrm.trade;
 import com.trading.ctrm.instrument.Instrument;
 import jakarta.persistence.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.trading.ctrm.trade.EnumType.BuySell;
@@ -16,6 +18,9 @@ public class Trade {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "template_id")
+    private Long templateId;
+
     @Column(name = "trade_id", nullable = false, unique = true)
     private String tradeId;
 
@@ -30,10 +35,10 @@ public class Trade {
     private String portfolio;
 
     @Column(nullable = false)
-    private double quantity;
+    private BigDecimal quantity;
 
     @Column(nullable = false)
-    private double price;
+    private BigDecimal price;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -62,6 +67,19 @@ public class Trade {
     }
 
     // ===== Getters & Setters =====
+
+    public Long getTemplateId() {
+    return templateId;
+    }
+
+    public void setTemplateId(Long templateId) {
+        this.templateId = templateId;
+    }
+
+   
+
+
+
 
     public Long getId() {
         return id;
@@ -107,19 +125,19 @@ public class Trade {
         this.portfolio = portfolio;
     }
 
-    public double getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(double quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 
@@ -149,6 +167,16 @@ public class Trade {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public BigDecimal getMtm() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getMtm'");
+    }
+
+    public void setMtm(BigDecimal mtm) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setMtm'");
     }
 
     

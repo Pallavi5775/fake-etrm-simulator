@@ -27,6 +27,11 @@ public class TradeController {
         return toDto(trade);
     }
 
+    @PostMapping("/book-from-template/{templateId}")
+    public Trade bookFromTemplate(@PathVariable Long templateId) {
+        return tradeService.bookFromTemplate(templateId);
+    }
+
     // ======================================
     // 2️⃣ APPLY LIFECYCLE EVENT (FO / MO / BO)
     // ======================================
@@ -50,7 +55,7 @@ public class TradeController {
 
         TradeResponseDto dto = new TradeResponseDto();
         dto.setTradeId(trade.getTradeId());
-        dto.setInstrumentSymbol(trade.getInstrument().getSymbol());
+        dto.setInstrumentSymbol(trade.getInstrument().getInstrumentCode());
         dto.setPortfolio(trade.getPortfolio());
         dto.setCounterparty(trade.getCounterparty());
         dto.setQuantity(trade.getQuantity());

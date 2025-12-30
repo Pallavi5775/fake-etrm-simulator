@@ -3,6 +3,7 @@ package com.trading.ctrm.trade.dto;
 import com.trading.ctrm.trade.EnumType.BuySell;
 import com.trading.ctrm.trade.TradeStatus;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class TradeResponseDto {
@@ -18,9 +19,9 @@ public class TradeResponseDto {
 
     private String counterparty;
 
-    private double quantity;
+    private BigDecimal quantity;
 
-    private double price;
+    private BigDecimal price;
 
     private BuySell buySell;
 
@@ -41,8 +42,8 @@ public class TradeResponseDto {
             String instrumentSymbol,
             String portfolio,
             String counterparty,
-            double quantity,
-            double price,
+            BigDecimal quantity,
+            BigDecimal price,
             BuySell buySell,
             TradeStatus status,
             LocalDateTime createdAt
@@ -94,19 +95,19 @@ public class TradeResponseDto {
         this.counterparty = counterparty;
     }
 
-    public double getQuantity() {
+    public BigDecimal getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(double quantity) {
+    public void setQuantity(BigDecimal quantity) {
         this.quantity = quantity;
     }
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 

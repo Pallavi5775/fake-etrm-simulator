@@ -1,5 +1,6 @@
 package com.trading.ctrm.trade;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -23,7 +24,7 @@ public class EndOfDayPnLJob {
     @Scheduled(cron = "0 0 23 * * ?")
     public void run() {
         tradeRepo.findAll().forEach(trade -> {
-            double mtm = pricingService
+            BigDecimal mtm = pricingService
                 .calculateMTM(trade, LocalDate.now());
             System.out.println("Trade " + trade.getTradeId() +
                                " MTM=" + mtm);

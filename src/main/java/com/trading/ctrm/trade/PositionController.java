@@ -29,7 +29,7 @@ public class PositionController {
     private PositionResponseDto toDto(PortfolioPosition p) {
         return new PositionResponseDto(
                 p.getPortfolio(),
-                p.getInstrument().getSymbol(),
+                p.getInstrument().getInstrumentCode(),
                 p.getNetQuantity()
         );
     }

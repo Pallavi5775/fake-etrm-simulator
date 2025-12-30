@@ -1,17 +1,19 @@
 package com.trading.ctrm.trade.dto;
 
+import java.math.BigDecimal;
+
 public class PositionResponseDto {
 
     private String portfolio;
     private String instrumentSymbol;
-    private double netQuantity;
+    private BigDecimal netQuantity;
 
     public PositionResponseDto() {}
 
     public PositionResponseDto(
             String portfolio,
             String instrumentSymbol,
-            double netQuantity
+            BigDecimal netQuantity
     ) {
         this.portfolio = portfolio;
         this.instrumentSymbol = instrumentSymbol;
@@ -34,11 +36,11 @@ public class PositionResponseDto {
         this.instrumentSymbol = instrumentSymbol;
     }
 
-    public double getNetQuantity() {
+    public BigDecimal getNetQuantity() {
         return netQuantity;
     }
 
-    public void setNetQuantity(double netQuantity) {
+    public void setNetQuantity(BigDecimal netQuantity) {
         this.netQuantity = netQuantity;
     }
 }
