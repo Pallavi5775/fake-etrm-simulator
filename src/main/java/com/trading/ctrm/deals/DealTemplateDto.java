@@ -1,0 +1,149 @@
+package com.trading.ctrm.deals;
+
+import java.math.BigDecimal;
+
+public class DealTemplateDto {
+    
+    private Long id;
+    private String templateName;
+    private String commodity;
+    private String instrumentType;
+    private Long instrumentId;
+    private String instrumentCode;
+    private String pricingModel;
+    private boolean autoApprovalAllowed;
+    private BigDecimal defaultQuantity;
+    private BigDecimal defaultPrice;
+    private String unit;
+    private String currency;
+    private BigDecimal mtmApprovalThreshold;
+
+    // Static factory method
+    public static DealTemplateDto from(DealTemplate template) {
+        DealTemplateDto dto = new DealTemplateDto();
+        dto.setId(template.getId());
+        dto.setTemplateName(template.getTemplateName());
+        dto.setCommodity(template.getCommodity());
+        dto.setInstrumentType(template.getInstrumentType());
+        
+        if (template.getInstrument() != null) {
+            dto.setInstrumentId(template.getInstrument().getId());
+            dto.setInstrumentCode(template.getInstrument().getInstrumentCode());
+        }
+        
+        dto.setPricingModel(template.getPricingModel());
+        dto.setAutoApprovalAllowed(template.isAutoApprovalAllowed());
+        dto.setDefaultQuantity(template.getDefaultQuantity());
+        dto.setDefaultPrice(template.getDefaultPrice());
+        dto.setUnit(template.getUnit());
+        dto.setCurrency(template.getCurrency());
+        dto.setMtmApprovalThreshold(template.getMtmApprovalThreshold());
+        
+        return dto;
+    }
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getTemplateName() {
+        return templateName;
+    }
+
+    public void setTemplateName(String templateName) {
+        this.templateName = templateName;
+    }
+
+    public String getCommodity() {
+        return commodity;
+    }
+
+    public void setCommodity(String commodity) {
+        this.commodity = commodity;
+    }
+
+    public String getInstrumentType() {
+        return instrumentType;
+    }
+
+    public void setInstrumentType(String instrumentType) {
+        this.instrumentType = instrumentType;
+    }
+
+    public Long getInstrumentId() {
+        return instrumentId;
+    }
+
+    public void setInstrumentId(Long instrumentId) {
+        this.instrumentId = instrumentId;
+    }
+
+    public String getInstrumentCode() {
+        return instrumentCode;
+    }
+
+    public void setInstrumentCode(String instrumentCode) {
+        this.instrumentCode = instrumentCode;
+    }
+
+    public String getPricingModel() {
+        return pricingModel;
+    }
+
+    public void setPricingModel(String pricingModel) {
+        this.pricingModel = pricingModel;
+    }
+
+    public boolean isAutoApprovalAllowed() {
+        return autoApprovalAllowed;
+    }
+
+    public void setAutoApprovalAllowed(boolean autoApprovalAllowed) {
+        this.autoApprovalAllowed = autoApprovalAllowed;
+    }
+
+    public BigDecimal getDefaultQuantity() {
+        return defaultQuantity;
+    }
+
+    public void setDefaultQuantity(BigDecimal defaultQuantity) {
+        this.defaultQuantity = defaultQuantity;
+    }
+
+    public BigDecimal getDefaultPrice() {
+        return defaultPrice;
+    }
+
+    public void setDefaultPrice(BigDecimal defaultPrice) {
+        this.defaultPrice = defaultPrice;
+    }
+
+    public String getUnit() {
+        return unit;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public BigDecimal getMtmApprovalThreshold() {
+        return mtmApprovalThreshold;
+    }
+
+    public void setMtmApprovalThreshold(BigDecimal mtmApprovalThreshold) {
+        this.mtmApprovalThreshold = mtmApprovalThreshold;
+    }
+}

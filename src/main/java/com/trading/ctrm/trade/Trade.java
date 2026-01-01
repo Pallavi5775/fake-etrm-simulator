@@ -18,6 +18,8 @@ public class Trade {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private BigDecimal mtm;
+
     @Column(name = "template_id")
     private Long templateId;
 
@@ -51,6 +53,12 @@ public class Trade {
     @Column(name = "pending_approval_role")
     private String pendingApprovalRole; // RISK, OPS, COMPLIANCE
 
+    @Column(name = "current_approval_level")
+    private Integer currentApprovalLevel; // 1, 2, 3...
+
+    @Column(name = "matched_rule_id")
+    private Long matchedRuleId; // ID of the approval rule that was matched
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -64,6 +72,12 @@ public class Trade {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
     // ===== Getters & Setters =====
@@ -169,14 +183,32 @@ public class Trade {
         return updatedAt;
     }
 
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     public BigDecimal getMtm() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getMtm'");
+        return mtm;
     }
 
     public void setMtm(BigDecimal mtm) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setMtm'");
+        this.mtm = mtm;
+    }
+
+    public Integer getCurrentApprovalLevel() {
+        return currentApprovalLevel;
+    }
+
+    public void setCurrentApprovalLevel(Integer currentApprovalLevel) {
+        this.currentApprovalLevel = currentApprovalLevel;
+    }
+
+    public Long getMatchedRuleId() {
+        return matchedRuleId;
+    }
+
+    public void setMatchedRuleId(Long matchedRuleId) {
+        this.matchedRuleId = matchedRuleId;
     }
 
     

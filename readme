@@ -17,3 +17,107 @@ One per instrument type
 Step 4️⃣ MTM-based approvals
 
 TPM + USDR consume MTM
+
+
+Amend / Cancel trade flows
+
+
+
+
+🔹 A. approval_rule (rule header)
+CREATE TABLE approval_rule (
+    rule_id            BIGSERIAL PRIMARY KEY,
+    rule_name          VARCHAR(100) NOT NULL,
+    description        TEXT,
+
+    trigger_event      VARCHAR(30) NOT NULL,   -- TRADE_BOOK, AMEND, REPRICE
+    instrument_scope   VARCHAR(30),             -- PHYSICAL, FINANCIAL
+    deal_type          VARCHAR(50),
+
+    priority           INT NOT NULL DEFAULT 100,
+    active             BOOLEAN NOT NULL DEFAULT TRUE,
+
+    effective_from     TIMESTAMP,
+    effective_to       TIMESTAMP,
+
+    created_by         VARCHAR(50),
+    created_at         TIMESTAMP DEFAULT now(),
+    last_modified_by   VARCHAR(50),
+    last_modified_at   TIMESTAMP,
+
+    version            INT DEFAULT 1
+);
+
+
+🔑 Why
+
+priority → deterministic evaluation order
+
+trigger_event → prevents rules firing randomly
+
+version → Endur supports rule versioning
+
+effective_from/to → regulatory requirement
+
+🔹 B. approval_rule_condition (controlled conditions)
+CREATE TABLE approval_rule_condition (
+    condition_id   BIGSERIAL PRIMARY KEY,
+    rule_id        BIGINT REFERENCES approval_rule(rule_id),
+
+    field_code     VARCHAR(50) NOT NULL,   -- QUANTITY, COUNTERPARTY, MTM
+    operator       VARCHAR(20) NOT NULL,   -- >, IN, BETWEEN
+    value_1        VARCHAR(100) NOT NULL,
+    value_2        VARCHAR(100),
+
+    logical_group  INT DEFAULT 1,           -- AND/OR grouping
+    sequence       INT NOT NULL
+);
+
+
+🔑 Key rule
+
+field_code must come from a controlled dictionary
+
+No SQL
+
+No expressions
+
+No scripting
+
+This is exactly how Endur avoids backend chaos.
+
+🔹 C. approval_routing (who approves)
+CREATE TABLE approval_routing (
+    routing_id      BIGSERIAL PRIMARY KEY,
+    rule_id         BIGINT REFERENCES approval_rule(rule_id),
+
+    approval_role   VARCHAR(30) NOT NULL,  -- RISK, CREDIT
+    approval_level  INT NOT NULL,           -- L1, L2
+    sequence        INT NOT NULL,            -- sequential approvals
+    parallel_group  INT                     -- parallel approvals
+);
+
+
+Supports:
+
+Risk → Credit
+
+Risk + Credit
+
+Escalations later
+
+🔹 D. Reference dictionaries (CRITICAL)
+CREATE TABLE approval_field_dictionary (
+    field_code     VARCHAR(50) PRIMARY KEY,
+    data_type      VARCHAR(20),   -- NUMBER, STRING, ENUM
+    description    TEXT
+);
+
+CREATE TABLE approval_operator_dictionary (
+    operator       VARCHAR(20) PRIMARY KEY,
+    applicable_type VARCHAR(20)
+);
+
+
+⚠️ Consultants cannot invent fields
+They only select from this list.

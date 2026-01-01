@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/positions")
-@CrossOrigin
+@CrossOrigin(origins = "*")
 public class PositionController {
 
     private final PortfolioPositionRepository repo;

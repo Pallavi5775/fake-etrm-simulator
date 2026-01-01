@@ -29,6 +29,11 @@ public class TradeResponseDto {
 
     /** Optional but useful for UI */
     private LocalDateTime createdAt;
+    
+    /** Approval workflow fields */
+    private String pendingApprovalRole;
+    private Integer currentApprovalLevel;
+    private Long matchedRuleId;
 
     // ------------------------
     // Constructors
@@ -140,5 +145,29 @@ public class TradeResponseDto {
     }
     public void setAmendCount(long amendCount) {
         this.amendCount = amendCount;
+    }
+
+    public String getPendingApprovalRole() {
+        return pendingApprovalRole;
+    }
+
+    public void setPendingApprovalRole(String pendingApprovalRole) {
+        this.pendingApprovalRole = pendingApprovalRole;
+    }
+
+    public Integer getCurrentApprovalLevel() {
+        return currentApprovalLevel;
+    }
+
+    public void setCurrentApprovalLevel(Integer currentApprovalLevel) {
+        this.currentApprovalLevel = currentApprovalLevel;
+    }
+
+    public Long getMatchedRuleId() {
+        return matchedRuleId;
+    }
+
+    public void setMatchedRuleId(Long matchedRuleId) {
+        this.matchedRuleId = matchedRuleId;
     }
 }

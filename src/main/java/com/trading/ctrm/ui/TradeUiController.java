@@ -18,6 +18,7 @@ import com.trading.ctrm.trade.TradeStatus;
  */
 @RestController
 @RequestMapping("/api/ui/trades")
+@CrossOrigin(origins = "*")
 public class TradeUiController {
 
     private final TradeRepository tradeRepository;
@@ -53,7 +54,7 @@ public TradeUiController(
      */
     @PostMapping("/{tradeId}/approve")
     public Trade approveTrade(
-            @PathVariable Long tradeId,
+            @PathVariable String tradeId,
             @RequestParam String role,
             @RequestParam String approvedBy
     ) {
@@ -65,7 +66,7 @@ public TradeUiController(
      */
     @PostMapping("/{tradeId}/reject")
     public Trade rejectTrade(
-            @PathVariable Long tradeId,
+            @PathVariable String tradeId,
             @RequestParam String reason,
             @RequestParam String rejectedBy
     ) {
@@ -74,7 +75,21 @@ public TradeUiController(
 
 
     @GetMapping("/{tradeId}/pnl")
-public BigDecimal getPnL(@PathVariable Long tradeId) {
-    return pnlService.calculatePnL(tradeId);
+public BigDecimal getPnL(@PathVariable String tradeId) {
+    Trade trade = findTrade(tradeId);
+    return pnlService.calculatePnL(trade.getId());
+}
+
+private Trade findTrade(String tradeId) {
+    // Try parsing as Long first (numeric database ID)
+    try {
+        Long id = Long.parseLong(tradeId);
+        return tradeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Trade not found with id: " + tradeId));
+    } catch (NumberFormatException e) {
+        // Not a number, lookup by business trade ID
+        return tradeRepository.findByTradeId(tradeId)
+                .orElseThrow(() -> new IllegalArgumentException("Trade not found: " + tradeId));
+    }
 }
 }

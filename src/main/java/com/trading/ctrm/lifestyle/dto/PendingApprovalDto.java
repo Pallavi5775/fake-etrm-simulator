@@ -13,6 +13,8 @@ public class PendingApprovalDto {
     private String requiredRole;        // RISK / OPS / COMPLIANCE
     private String triggeringEvent;     // PRICED
     private LocalDateTime requestedAt;  // when approval was requested
+    private Integer currentApprovalLevel;  // 1, 2, 3...
+    private Long matchedRuleId;         // rule_id that was matched
 
     // -------- Getters & Setters --------
 
@@ -78,5 +80,21 @@ public class PendingApprovalDto {
 
     public void setEvent(String event) {
         this.triggeringEvent = event;
+    }
+
+    public Integer getCurrentApprovalLevel() {
+        return currentApprovalLevel;
+    }
+
+    public void setCurrentApprovalLevel(Integer currentApprovalLevel) {
+        this.currentApprovalLevel = currentApprovalLevel;
+    }
+
+    public Long getMatchedRuleId() {
+        return matchedRuleId;
+    }
+
+    public void setMatchedRuleId(Long matchedRuleId) {
+        this.matchedRuleId = matchedRuleId;
     }
 }

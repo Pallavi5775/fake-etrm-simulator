@@ -8,6 +8,8 @@ import java.util.List;
 import org.springframework.web.bind.annotation.*;
 
 import com.trading.ctrm.trade.Trade;
+import com.trading.ctrm.trade.dto.ApprovalRequest;
+import com.trading.ctrm.trade.dto.TradeResponseDto;
 import com.trading.ctrm.lifestyle.dto.PendingApprovalDto;
 import com.trading.ctrm.lifestyle.dto.RejectRequest;
 
@@ -31,12 +33,21 @@ public class ApprovalController {
      * 🔍 Get trades pending approval for a role
      * Example:
      * GET /api/approvals/pending?role=RISK
+     * Or use header: X-User-Role
      */
     @GetMapping("/pending")
     public List<PendingApprovalDto> getPendingApprovals(
-            @RequestParam String role) {
+            @RequestParam(required = false) String role,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
 
-        return approvalQueryService.findPendingApprovals(role);
+        // Use role from query param or header
+        String approvalRole = role != null ? role : userRole;
+        
+        if (approvalRole == null) {
+            throw new IllegalArgumentException("Role must be provided either as query param or X-User-Role header");
+        }
+
+        return approvalQueryService.findPendingApprovals(approvalRole);
     }
 
     /**
@@ -44,16 +55,19 @@ public class ApprovalController {
      * POST /api/approvals/{tradeId}/approve
      */
     @PostMapping("/{tradeId}/approve")
-    public Trade approve(
-            @PathVariable Long tradeId,
-            @RequestParam String role,
+    public TradeResponseDto approve(
+            @PathVariable String tradeId,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "X-User-Name", required = false) String userName,
             Principal principal) {
 
-        return lifecycleEngine.approveTrade(
-                tradeId,
-                role,
-                principal.getName()
-        );
+        // Get user info from headers (set by frontend from localStorage)
+        String approverRole = userRole != null ? userRole : "RISK";
+        String approvedBy = userName != null ? userName : 
+                          (principal != null ? principal.getName() : "SYSTEM");
+
+        Trade trade = lifecycleEngine.approveTrade(tradeId, approverRole, approvedBy);
+        return toDto(trade);
     }
 
     /**
@@ -61,16 +75,36 @@ public class ApprovalController {
      * POST /api/approvals/{tradeId}/reject
      */
     @PostMapping("/{tradeId}/reject")
-    public Trade reject(
-            @PathVariable Long tradeId,
+    public TradeResponseDto reject(
+            @PathVariable String tradeId,
             @RequestBody RejectRequest request,
             Principal principal) {
 
-        return lifecycleEngine.rejectTrade(
+        String rejectedBy = principal != null ? principal.getName() : "SYSTEM";
+
+        Trade trade = lifecycleEngine.rejectTrade(
                 tradeId,
                 request.getReason(),
-                principal.getName()
+                rejectedBy
         );
+        return toDto(trade);
+    }
+
+    private TradeResponseDto toDto(Trade trade) {
+        TradeResponseDto dto = new TradeResponseDto();
+        dto.setTradeId(trade.getTradeId());
+        dto.setInstrumentSymbol(trade.getInstrument().getInstrumentCode());
+        dto.setPortfolio(trade.getPortfolio());
+        dto.setCounterparty(trade.getCounterparty());
+        dto.setQuantity(trade.getQuantity());
+        dto.setPrice(trade.getPrice());
+        dto.setBuySell(trade.getBuySell());
+        dto.setStatus(trade.getStatus());
+        dto.setCreatedAt(trade.getCreatedAt());
+        dto.setPendingApprovalRole(trade.getPendingApprovalRole());
+        dto.setCurrentApprovalLevel(trade.getCurrentApprovalLevel());
+        dto.setMatchedRuleId(trade.getMatchedRuleId());
+        return dto;
     }
 }
 

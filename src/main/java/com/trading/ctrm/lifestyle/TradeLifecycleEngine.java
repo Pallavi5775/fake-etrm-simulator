@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,8 @@ import com.trading.ctrm.pricing.ValuationHistoryRepository;
 import com.trading.ctrm.deals.DealTemplate;
 import com.trading.ctrm.deals.DealTemplateRepository;
 import com.trading.ctrm.trade.*;
+import com.trading.ctrm.rules.ApprovalRouting;
+import com.trading.ctrm.rules.ApprovalRoutingService;
 
 import jakarta.transaction.Transactional;
 
@@ -39,6 +42,7 @@ public class TradeLifecycleEngine {
     private final MarketDataService marketDataService;
     private final DealTemplateRepository templateRepository;
     private final ValuationHistoryRepository valuationHistoryRepository;
+    private final ApprovalRoutingService approvalRoutingService;
 
     // ✅ EXPLICIT constructor
     public TradeLifecycleEngine(
@@ -49,7 +53,8 @@ public class TradeLifecycleEngine {
             PricingEngineFactory pricingEngineFactory,
             MarketDataService marketDataService,
             DealTemplateRepository templateRepository,
-            ValuationHistoryRepository valuationHistoryRepository) {
+            ValuationHistoryRepository valuationHistoryRepository,
+            ApprovalRoutingService approvalRoutingService) {
 
         this.ruleRepository = ruleRepository;
         this.tradeEventRepository = tradeEventRepository;
@@ -59,6 +64,7 @@ public class TradeLifecycleEngine {
         this.marketDataService = marketDataService;
         this.templateRepository = templateRepository;
         this.valuationHistoryRepository = valuationHistoryRepository;
+        this.approvalRoutingService = approvalRoutingService;
     }
 
     /**
@@ -154,7 +160,7 @@ public class TradeLifecycleEngine {
             trade.setStatus(TradeStatus.PENDING_APPROVAL);
             trade.setPendingApprovalRole("RISK");
         } else {
-            trade.setStatus(TradeStatus.CONFIRMED);
+            trade.setStatus(TradeStatus.APPROVED);
         }
     }
 
@@ -238,14 +244,11 @@ public class TradeLifecycleEngine {
 
     @Transactional
     public Trade rejectTrade(
-            Long tradeId,
+            String tradeId,
             String rejectionReason,
             String rejectedBy) {
 
-        Trade trade = tradeRepository.findByIdForUpdate(tradeId)
-                .orElseThrow(() ->
-                    new BusinessException("Trade not found: " + tradeId)
-                );
+        Trade trade = findTrade(tradeId);
 
         if (trade.getStatus() != TradeStatus.PENDING_APPROVAL) {
             throw new BusinessException(
@@ -262,7 +265,7 @@ public class TradeLifecycleEngine {
                 saved,
                 TradeEventType.REJECTED,
                 rejectedBy,
-                rejectionReason
+                "APPROVAL_UI"  // source
         );
         tradeEventRepository.save(event);
 
@@ -271,14 +274,11 @@ public class TradeLifecycleEngine {
 
     @Transactional
     public Trade approveTrade(
-            Long tradeId,
+            String tradeId,
             String approverRole,
             String approvedBy) {
 
-        Trade trade = tradeRepository.findByIdForUpdate(tradeId)
-                .orElseThrow(() ->
-                    new BusinessException("Trade not found: " + tradeId)
-                );
+        Trade trade = findTrade(tradeId);
 
         if (trade.getStatus() != TradeStatus.PENDING_APPROVAL) {
             throw new BusinessException(
@@ -286,14 +286,39 @@ public class TradeLifecycleEngine {
             );
         }
 
-        if (!approverRole.equals(trade.getPendingApprovalRole())) {
+        // Verify the approver has the required role
+        if (trade.getPendingApprovalRole() != null && 
+            !approverRole.equals(trade.getPendingApprovalRole())) {
             throw new BusinessException(
-                "Approval requires role: " + trade.getPendingApprovalRole()
+                "Approval requires role: " + trade.getPendingApprovalRole() + 
+                ", but user has role: " + approverRole
             );
         }
 
-        trade.setStatus(TradeStatus.CONFIRMED);
-        trade.setPendingApprovalRole(null);
+        // Check if there are more approval levels
+        if (trade.getMatchedRuleId() != null && trade.getCurrentApprovalLevel() != null) {
+            Optional<ApprovalRouting> nextLevel = approvalRoutingService.getNextLevel(
+                trade.getMatchedRuleId(),
+                trade.getCurrentApprovalLevel()
+            );
+
+            if (nextLevel.isPresent()) {
+                // Move to next approval level
+                trade.setCurrentApprovalLevel(nextLevel.get().getApprovalLevel());
+                trade.setPendingApprovalRole(nextLevel.get().getApprovalRole());
+                // Status remains PENDING_APPROVAL
+            } else {
+                // No more levels - fully approved
+                trade.setStatus(TradeStatus.APPROVED);
+                trade.setPendingApprovalRole(null);
+                trade.setCurrentApprovalLevel(null);
+            }
+        } else {
+            // No rule matched or no levels - approve immediately
+            trade.setStatus(TradeStatus.APPROVED);
+            trade.setPendingApprovalRole(null);
+        }
+
         Trade saved = tradeRepository.save(trade);
 
         TradeEvent event = TradeEvent.of(
@@ -307,5 +332,21 @@ public class TradeLifecycleEngine {
         handlerRegistry.handle(TradeEventType.APPROVED, saved);
 
         return saved;
+    }
+
+    /**
+     * Smart lookup - handles both numeric IDs and business trade IDs
+     */
+    private Trade findTrade(String tradeId) {
+        // Try parsing as Long first (numeric database ID)
+        try {
+            Long id = Long.parseLong(tradeId);
+            return tradeRepository.findById(id)
+                    .orElseThrow(() -> new BusinessException("Trade not found with id: " + tradeId));
+        } catch (NumberFormatException e) {
+            // Not a number, lookup by business trade ID
+            return tradeRepository.findByTradeId(tradeId)
+                    .orElseThrow(() -> new BusinessException("Trade not found: " + tradeId));
+        }
     }
 }

@@ -38,6 +38,8 @@ public class ApprovalQueryService {
         dto.setDesk(trade.getPortfolio());
         dto.setStatus(trade.getStatus().name());
         dto.setRequiredRole(trade.getPendingApprovalRole());
+        dto.setCurrentApprovalLevel(trade.getCurrentApprovalLevel());
+        dto.setMatchedRuleId(trade.getMatchedRuleId());
         dto.setRequestedAt(trade.getUpdatedAt());
         dto.setEvent("APPROVAL_REQUIRED");
         return dto;

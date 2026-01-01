@@ -26,11 +26,26 @@ public class TradeQueryController {
         this.tradeEventRepository = tradeEventRepository;
     }
 
-    // 1️⃣ All trades (Trade Blotter)
+    // 1️⃣ All trades (Trade Blotter) - supports filtering by status and role
     @GetMapping
-    public List<TradeResponseDto> getAllTrades() {
-        return tradeRepository.findAll()
-            .stream()
+    public List<TradeResponseDto> getAllTrades(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) TradeStatus status,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String pendingRole) {
+        
+        List<Trade> trades;
+        
+        if (status != null && pendingRole != null) {
+            // Filter by both status and pending approval role
+            trades = tradeRepository.findByStatusAndPendingApprovalRole(status, pendingRole);
+        } else if (status != null) {
+            // Filter by status only
+            trades = tradeRepository.findByStatus(status);
+        } else {
+            // Return all trades
+            trades = tradeRepository.findAll();
+        }
+            
+        return trades.stream()
             .map(this::toDto)
             .toList();
     }
@@ -47,6 +62,11 @@ public class TradeQueryController {
     dto.setBuySell(trade.getBuySell());
     dto.setStatus(trade.getStatus());
     dto.setCreatedAt(trade.getCreatedAt());
+    
+    // ✅ Approval workflow fields
+    dto.setPendingApprovalRole(trade.getPendingApprovalRole());
+    dto.setCurrentApprovalLevel(trade.getCurrentApprovalLevel());
+    dto.setMatchedRuleId(trade.getMatchedRuleId());
 
     // ✅ FIXED: entity-based counting
     dto.setAmendCount(
