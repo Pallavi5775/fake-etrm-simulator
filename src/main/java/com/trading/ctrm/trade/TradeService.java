@@ -11,8 +11,16 @@ import com.trading.ctrm.rules.ApprovalRouting;
 import com.trading.ctrm.rules.ApprovalRule;
 import com.trading.ctrm.rules.ApprovalRuleEngine;
 import com.trading.ctrm.rules.TradeContext;
+import com.trading.ctrm.rules.ValuationContext;
+import com.trading.ctrm.rules.MarketContext;
+import com.trading.ctrm.rules.PricingContext;
+import com.trading.ctrm.rules.RiskContext;
+import com.trading.ctrm.rules.AccountingContext;
+import com.trading.ctrm.rules.CreditContext;
+import com.trading.ctrm.rules.AuditContext;
 import com.trading.ctrm.trade.EnumType.BuySell;
 import com.trading.ctrm.trade.dto.TradeEventRequest;
+import com.trading.ctrm.trade.dto.ValuationConfigRequest;
 
 import jakarta.transaction.Transactional;
 
@@ -29,7 +37,7 @@ public class TradeService {
 
     private final TradeRepository tradeRepository;
     private final InstrumentRepository instrumentRepository;
-    private final PositionService positionService;
+    private final PortfolioPositionService portfolioPositionService;
     private final TradeLifecycleEngine tradeLifecycleEngine;
     private final DealTemplateRepository templateRepo;
     private final ApprovalRuleEngine approvalRuleEngine;
@@ -38,7 +46,7 @@ public class TradeService {
     public TradeService(
             TradeRepository tradeRepository,
             InstrumentRepository instrumentRepository,
-            PositionService positionService,
+            PortfolioPositionService portfolioPositionService,
             TradeLifecycleEngine tradeLifecycleEngine,
             DealTemplateRepository templateRepo,
             ApprovalRuleEngine approvalRuleEngine,
@@ -46,7 +54,7 @@ public class TradeService {
     ) {
         this.tradeRepository = tradeRepository;
         this.instrumentRepository = instrumentRepository;
-        this.positionService = positionService;
+        this.portfolioPositionService = portfolioPositionService;
         this.tradeLifecycleEngine = tradeLifecycleEngine;
         this.templateRepo = templateRepo;
         this.approvalRuleEngine = approvalRuleEngine;
@@ -84,7 +92,7 @@ public class TradeService {
                 "UI"
         );
 
-        positionService.updatePosition(saved);
+        portfolioPositionService.updatePosition(saved);
         return saved;
     }
     
@@ -96,7 +104,8 @@ public Trade bookFromTemplate(
         BigDecimal quantityOverride,
         BuySell buySell,
         String counterparty,
-        String portfolio
+        String portfolio,
+        ValuationConfigRequest valuationConfig
 ) {
 
     DealTemplate template = templateRepo.findById(templateId)
@@ -123,6 +132,7 @@ public Trade bookFromTemplate(
     trade.setTradeId(UUID.randomUUID().toString());
     trade.setCreatedAt(LocalDateTime.now());
     trade.setStatus(TradeStatus.CREATED);
+    trade.setCreatedBy(getCurrentUser());
 
     // ===== AUTO-APPROVAL CHECK =====
     if (template.isAutoApprovalAllowed()) {
@@ -132,22 +142,15 @@ public Trade bookFromTemplate(
     }
 
     // ===== APPROVAL EVALUATION =====
-    TradeContext ctx = new TradeContext();
-    ctx.setTradeId(trade.getTradeId());
-    ctx.setQuantity(trade.getQuantity().doubleValue());
-    ctx.setPrice(trade.getPrice().doubleValue());
-    ctx.setCounterparty(trade.getCounterparty());
-    ctx.setPortfolio(trade.getPortfolio());
-    ctx.setInstrumentType(
-        trade.getInstrument().getInstrumentType().name()
-    );
+    ValuationContext valuationCtx = buildValuationContext(trade, valuationConfig);
+
+    TradeContext ctx = valuationCtx.trade();
 
     System.out.println("🔍 Evaluating approval rules for trade: " + trade.getTradeId());
-    System.out.println("   Quantity: " + ctx.getQuantity());
-    System.out.println("   Price: " + ctx.getPrice());
-    System.out.println("   Counterparty: " + ctx.getCounterparty());
-    System.out.println("   Portfolio: " + ctx.getPortfolio());
-    System.out.println("   InstrumentType: " + ctx.getInstrumentType());
+    System.out.println("   Quantity: " + ctx.quantity());
+    System.out.println("   Counterparty: " + ctx.counterparty());
+    System.out.println("   Portfolio: " + ctx.portfolio());
+    System.out.println("   InstrumentType: " + ctx.instrumentType());
 
     Optional<ApprovalRule> matchedRule =
         approvalRuleEngine.evaluate(ctx, "TRADE_BOOK");
@@ -205,7 +208,7 @@ public Trade bookFromTemplate(
         if (eventType == TradeEventType.AMENDED ||
             eventType == TradeEventType.PRICED) {
 
-            positionService.updatePosition(updated);
+            portfolioPositionService.updatePosition(updated);
         }
 
         return updated;
@@ -226,6 +229,69 @@ public Trade bookFromTemplate(
             return tradeRepository.findByTradeId(tradeId)
                     .orElseThrow(() -> new IllegalArgumentException("Trade not found: " + tradeId));
         }
+    }
+
+    /**
+     * Builds ValuationContext from trade and optional UI configuration
+     */
+    private ValuationContext buildValuationContext(Trade trade, ValuationConfigRequest config) {
+        if (config == null) {
+            // Use defaults
+            return ValuationContext.builder()
+                .trade(TradeContext.fromTrade(trade))
+                .market(MarketContext.fromTrade(trade))
+                .pricing(PricingContext.fromTrade(trade))
+                .risk(RiskContext.fromTrade(trade))
+                .accounting(AccountingContext.fromTrade(trade))
+                .credit(CreditContext.fromTrade(trade))
+                .audit(AuditContext.fromTrade(trade))
+                .build();
+        }
+
+        // Use custom values from UI
+        return ValuationContext.builder()
+            .trade(TradeContext.fromTrade(trade))
+            .market(MarketContext.fromTrade(
+                trade,
+                config.getMarketDataSet(),
+                config.getPricingDate(),
+                config.getCurveSet(),
+                config.getFxScenario(),
+                config.getVolatilitySurface()
+            ))
+            .pricing(PricingContext.fromTrade(
+                trade,
+                config.getPricingModel(),
+                config.getDayCount(),
+                config.getCompounding(),
+                config.getSettlementType()
+            ))
+            .risk(RiskContext.fromTrade(
+                trade,
+                config.getEvaluationPurpose(),
+                config.getGreeksEnabled(),
+                config.getShockScenario(),
+                config.getAggregationLevel()
+            ))
+            .accounting(AccountingContext.fromTrade(
+                trade,
+                config.getAccountingBook(),
+                config.getPnlType(),
+                config.getIncludeAccruals()
+            ))
+            .credit(CreditContext.fromTrade(
+                trade,
+                config.getCreditCurve(),
+                config.getNettingSet(),
+                config.getCollateralAgreement()
+            ))
+            .audit(AuditContext.fromTrade(
+                trade,
+                config.getUser(),
+                config.getLegalEntity(),
+                config.getSourceSystem()
+            ))
+            .build();
     }
 
     

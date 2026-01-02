@@ -9,11 +9,11 @@ import com.trading.ctrm.instrument.Instrument;
 import com.trading.ctrm.trade.EnumType.BuySell;
 
 @Service
-public class PositionService {
+public class PortfolioPositionService {
 
     private final PortfolioPositionRepository repo;
 
-    public PositionService(PortfolioPositionRepository repo) {
+    public PortfolioPositionService(PortfolioPositionRepository repo) {
         this.repo = repo;
     }
 

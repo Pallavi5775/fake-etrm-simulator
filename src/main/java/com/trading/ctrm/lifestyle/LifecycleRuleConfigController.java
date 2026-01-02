@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/config/lifecycle-rules")
-@CrossOrigin
+
 public class LifecycleRuleConfigController {
 
     private final JpaLifecycleRuleRepository repository;

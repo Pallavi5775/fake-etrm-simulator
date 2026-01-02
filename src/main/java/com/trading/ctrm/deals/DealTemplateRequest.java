@@ -9,6 +9,13 @@ public class DealTemplateRequest {
     private BigDecimal defaultQuantity;
     private BigDecimal defaultPrice;
     private boolean autoApprovalAllowed;
+    
+    // Optional overrides - if not provided, inherit from instrument
+    private String commodity;
+    private String instrumentType;
+    private String unit;
+    private String currency;
+    private BigDecimal mtmApprovalThreshold;
 
     public String getTemplateName() {
         return templateName;
@@ -48,5 +55,45 @@ public class DealTemplateRequest {
 
     public void setAutoApprovalAllowed(boolean autoApprovalAllowed) {
         this.autoApprovalAllowed = autoApprovalAllowed;
+    }
+
+    public String getCommodity() {
+        return commodity;
+    }
+
+    public void setCommodity(String commodity) {
+        this.commodity = commodity;
+    }
+
+    public String getInstrumentType() {
+        return instrumentType;
+    }
+
+    public void setInstrumentType(String instrumentType) {
+        this.instrumentType = instrumentType;
+    }
+
+    public String getUnit() {
+        return unit;
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public BigDecimal getMtmApprovalThreshold() {
+        return mtmApprovalThreshold;
+    }
+
+    public void setMtmApprovalThreshold(BigDecimal mtmApprovalThreshold) {
+        this.mtmApprovalThreshold = mtmApprovalThreshold;
     }
 }

@@ -23,20 +23,41 @@ public class DealTemplateDto {
         DealTemplateDto dto = new DealTemplateDto();
         dto.setId(template.getId());
         dto.setTemplateName(template.getTemplateName());
-        dto.setCommodity(template.getCommodity());
-        dto.setInstrumentType(template.getInstrumentType());
         
+        // Populate from instrument if template fields are null
         if (template.getInstrument() != null) {
             dto.setInstrumentId(template.getInstrument().getId());
             dto.setInstrumentCode(template.getInstrument().getInstrumentCode());
+            
+            // Use template values if set, otherwise fall back to instrument
+            dto.setCommodity(template.getCommodity() != null ? 
+                template.getCommodity() : template.getInstrument().getCommodity());
+            dto.setInstrumentType(template.getInstrumentType() != null ? 
+                template.getInstrumentType() : template.getInstrument().getInstrumentType().name());
+            dto.setUnit(template.getUnit() != null ? 
+                template.getUnit() : template.getInstrument().getUnit());
+            dto.setCurrency(template.getCurrency() != null ? 
+                template.getCurrency() : template.getInstrument().getCurrency());
+            
+            // Set pricing model based on instrument type if not set
+            if (template.getPricingModel() != null) {
+                dto.setPricingModel(template.getPricingModel());
+            } else {
+                String instrumentType = template.getInstrument().getInstrumentType().name();
+                dto.setPricingModel(instrumentType.contains("OPTION") ? "Black76" : "DCF");
+            }
+        } else {
+            // No instrument - use template values directly (may be null)
+            dto.setCommodity(template.getCommodity());
+            dto.setInstrumentType(template.getInstrumentType());
+            dto.setUnit(template.getUnit());
+            dto.setCurrency(template.getCurrency());
+            dto.setPricingModel(template.getPricingModel());
         }
         
-        dto.setPricingModel(template.getPricingModel());
         dto.setAutoApprovalAllowed(template.isAutoApprovalAllowed());
         dto.setDefaultQuantity(template.getDefaultQuantity());
         dto.setDefaultPrice(template.getDefaultPrice());
-        dto.setUnit(template.getUnit());
-        dto.setCurrency(template.getCurrency());
         dto.setMtmApprovalThreshold(template.getMtmApprovalThreshold());
         
         return dto;

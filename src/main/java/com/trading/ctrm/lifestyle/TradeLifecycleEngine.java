@@ -16,11 +16,16 @@ import com.trading.ctrm.pricing.PricingEngine;
 import com.trading.ctrm.pricing.PricingEngineFactory;
 import com.trading.ctrm.pricing.ValuationHistory;
 import com.trading.ctrm.pricing.ValuationHistoryRepository;
+import com.trading.ctrm.pricing.ValuationResult;
 import com.trading.ctrm.deals.DealTemplate;
 import com.trading.ctrm.deals.DealTemplateRepository;
 import com.trading.ctrm.trade.*;
 import com.trading.ctrm.rules.ApprovalRouting;
 import com.trading.ctrm.rules.ApprovalRoutingService;
+import com.trading.ctrm.rules.ApprovalRuleEngine;
+import com.trading.ctrm.rules.ApprovalExecutionService;
+import com.trading.ctrm.rules.ApprovalRule;
+import com.trading.ctrm.rules.TradeContext;
 
 import jakarta.transaction.Transactional;
 
@@ -43,6 +48,8 @@ public class TradeLifecycleEngine {
     private final DealTemplateRepository templateRepository;
     private final ValuationHistoryRepository valuationHistoryRepository;
     private final ApprovalRoutingService approvalRoutingService;
+    private final ApprovalRuleEngine approvalRuleEngine;
+    private final ApprovalExecutionService approvalExecutionService;
 
     // ✅ EXPLICIT constructor
     public TradeLifecycleEngine(
@@ -54,7 +61,9 @@ public class TradeLifecycleEngine {
             MarketDataService marketDataService,
             DealTemplateRepository templateRepository,
             ValuationHistoryRepository valuationHistoryRepository,
-            ApprovalRoutingService approvalRoutingService) {
+            ApprovalRoutingService approvalRoutingService,
+            ApprovalRuleEngine approvalRuleEngine,
+            ApprovalExecutionService approvalExecutionService) {
 
         this.ruleRepository = ruleRepository;
         this.tradeEventRepository = tradeEventRepository;
@@ -65,6 +74,8 @@ public class TradeLifecycleEngine {
         this.templateRepository = templateRepository;
         this.valuationHistoryRepository = valuationHistoryRepository;
         this.approvalRoutingService = approvalRoutingService;
+        this.approvalRuleEngine = approvalRuleEngine;
+        this.approvalExecutionService = approvalExecutionService;
     }
 
     /**
@@ -133,30 +144,41 @@ public class TradeLifecycleEngine {
                     )
                 );
 
-        MarketDataSnapshot snapshot = marketDataService.loadSnapshot();
         Instrument instrument = trade.getInstrument();
+
+        // Build ValuationContext for pricing
+        com.trading.ctrm.rules.ValuationContext valuationContext =
+            com.trading.ctrm.rules.ValuationContext.builder()
+                .trade(com.trading.ctrm.rules.TradeContext.fromTrade(trade))
+                .market(com.trading.ctrm.rules.MarketContext.fromTrade(trade))
+                .pricing(com.trading.ctrm.rules.PricingContext.fromTrade(trade))
+                .risk(com.trading.ctrm.rules.RiskContext.fromTrade(trade))
+                .accounting(com.trading.ctrm.rules.AccountingContext.fromTrade(trade))
+                .credit(com.trading.ctrm.rules.CreditContext.fromTrade(trade))
+                .audit(com.trading.ctrm.rules.AuditContext.fromTrade(trade))
+                .build();
 
         PricingEngine engine =
                 pricingEngineFactory.getEngine(
                         instrument.getInstrumentType()
                 );
 
-        BigDecimal mtm =
-                engine.calculateMTM(trade, instrument, snapshot);
+        // Get comprehensive valuation result
+        ValuationResult result = engine.price(trade, instrument, valuationContext);
 
         // ✅ Store MTM on Trade (for UI)
-        trade.setMtm(mtm);
+        trade.setMtm(result.getMtmTotal());
 
-        // ✅ Persist valuation history (THIS IS THE CHANGE YOU ASKED FOR)
+        // ✅ Persist valuation history
         valuationHistoryRepository.save(
                 new ValuationHistory(
                         trade,
-                        mtm,
+                        result.getMtmTotal(),
                         LocalDate.now()
                 )
         );
 
-        if (mtm.abs().compareTo(template.getMtmApprovalThreshold()) > 0) {
+        if (result.getMtmTotal().abs().compareTo(template.getMtmApprovalThreshold()) > 0) {
             trade.setStatus(TradeStatus.PENDING_APPROVAL);
             trade.setPendingApprovalRole("RISK");
         } else {
@@ -256,20 +278,70 @@ public class TradeLifecycleEngine {
             );
         }
 
-        trade.setStatus(TradeStatus.REJECTED);
-        trade.setPendingApprovalRole(null);
+        // ===== APPROVAL RULE EVALUATION FOR REJECTION =====
+        TradeContext ctx = TradeContext.fromTrade(trade);
 
-        Trade saved = tradeRepository.save(trade);
+        System.out.println("🔍 Evaluating approval rules for trade rejection: " + trade.getTradeId());
+        System.out.println("   Quantity: " + ctx.quantity());
+        System.out.println("   Counterparty: " + ctx.counterparty());
+        System.out.println("   Portfolio: " + ctx.portfolio());
+        System.out.println("   InstrumentType: " + ctx.instrumentType());
 
-        TradeEvent event = TradeEvent.of(
-                saved,
-                TradeEventType.REJECTED,
-                rejectedBy,
-                "APPROVAL_UI"  // source
-        );
-        tradeEventRepository.save(event);
+        Optional<ApprovalRule> matchedRule =
+            approvalRuleEngine.evaluate(ctx, "TRADE_REJECT");
 
-        return saved;
+        System.out.println("   Rule matched for rejection: " + matchedRule.isPresent());
+
+        if (matchedRule.isPresent()) {
+            // Rejection requires approval - create pending approval for rejection
+            ApprovalRule rule = matchedRule.get();
+
+            approvalExecutionService.createPendingApproval(
+                ctx,
+                rule,
+                "TRADE_REJECT"
+            );
+
+            // Update trade with rejection approval details
+            trade.setMatchedRuleId(rule.getRuleId());
+            trade.setCurrentApprovalLevel(1);
+            trade.setPendingApprovalRole(
+                rule.getRouting().stream()
+                    .filter(r -> r.getApprovalLevel() == 1)
+                    .findFirst()
+                    .map(ApprovalRouting::getApprovalRole)
+                    .orElse("SENIOR_TRADER")
+            );
+            // Status remains PENDING_APPROVAL but now for rejection approval
+
+            Trade saved = tradeRepository.save(trade);
+
+            TradeEvent event = TradeEvent.of(
+                    saved,
+                    TradeEventType.REJECTED,
+                    rejectedBy,
+                    "APPROVAL_UI - Pending rejection approval"
+            );
+            tradeEventRepository.save(event);
+
+            return saved;
+        } else {
+            // No approval rule for rejection - reject immediately
+            trade.setStatus(TradeStatus.REJECTED);
+            trade.setPendingApprovalRole(null);
+
+            Trade saved = tradeRepository.save(trade);
+
+            TradeEvent event = TradeEvent.of(
+                    saved,
+                    TradeEventType.REJECTED,
+                    rejectedBy,
+                    "APPROVAL_UI"
+            );
+            tradeEventRepository.save(event);
+
+            return saved;
+        }
     }
 
     @Transactional

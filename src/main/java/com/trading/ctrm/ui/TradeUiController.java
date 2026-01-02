@@ -18,7 +18,6 @@ import com.trading.ctrm.trade.TradeStatus;
  */
 @RestController
 @RequestMapping("/api/ui/trades")
-@CrossOrigin(origins = "*")
 public class TradeUiController {
 
     private final TradeRepository tradeRepository;

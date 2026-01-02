@@ -31,7 +31,7 @@ public class DealTemplate {
        Instrument Association
        ========================= */
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
     @JoinColumn(name = "instrument_id", nullable = false)
     private Instrument instrument;
 

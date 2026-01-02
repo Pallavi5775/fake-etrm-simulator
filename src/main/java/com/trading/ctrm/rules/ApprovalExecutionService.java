@@ -18,7 +18,7 @@ public class ApprovalExecutionService {
     ) {
         // Create approval task for the trade
         ApprovalTask task = new ApprovalTask();
-        task.setTradeId(tradeContext.getTradeId());
+        task.setTradeId(String.valueOf(tradeContext.tradeId()));
         task.setRuleId(rule.getRuleId());
         task.setTriggerEvent(triggerEvent);
         task.setStatus("PENDING");

@@ -59,6 +59,9 @@ public class Trade {
     @Column(name = "matched_rule_id")
     private Long matchedRuleId; // ID of the approval rule that was matched
 
+    @Column(name = "created_by")
+    private String createdBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -211,5 +214,11 @@ public class Trade {
         this.matchedRuleId = matchedRuleId;
     }
 
-    
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
 }

@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/trades")
-@CrossOrigin
+
 public class TradeQueryController {
 
     private final TradeRepository tradeRepository;
@@ -62,11 +62,17 @@ public class TradeQueryController {
     dto.setBuySell(trade.getBuySell());
     dto.setStatus(trade.getStatus());
     dto.setCreatedAt(trade.getCreatedAt());
+    dto.setCreatedBy(trade.getCreatedBy());
     
     // ✅ Approval workflow fields
     dto.setPendingApprovalRole(trade.getPendingApprovalRole());
     dto.setCurrentApprovalLevel(trade.getCurrentApprovalLevel());
     dto.setMatchedRuleId(trade.getMatchedRuleId());
+    
+    // ✅ Valuation context information
+    dto.setMtm(trade.getMtm());
+    dto.setCommodity(trade.getInstrument().getCommodity());
+    dto.setInstrumentType(trade.getInstrument().getInstrumentType().name());
 
     // ✅ FIXED: entity-based counting
     dto.setAmendCount(
@@ -98,6 +104,39 @@ public class TradeQueryController {
     @GetMapping("/status/{status}")
     public List<Trade> getTradesByStatus(@PathVariable TradeStatus status) {
         return this.tradeRepository.findByStatus(status);
+    }
+
+    // 5️⃣ Search trades by multiple criteria
+    @GetMapping("/search")
+    public List<TradeResponseDto> searchTrades(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String portfolio,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String counterparty,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) TradeStatus status) {
+        
+        List<Trade> trades = tradeRepository.findAll();
+        
+        // Apply filters
+        if (portfolio != null && !portfolio.isEmpty()) {
+            trades = trades.stream()
+                    .filter(t -> t.getPortfolio().equalsIgnoreCase(portfolio))
+                    .toList();
+        }
+        
+        if (counterparty != null && !counterparty.isEmpty()) {
+            trades = trades.stream()
+                    .filter(t -> t.getCounterparty().equalsIgnoreCase(counterparty))
+                    .toList();
+        }
+        
+        if (status != null) {
+            trades = trades.stream()
+                    .filter(t -> t.getStatus() == status)
+                    .toList();
+        }
+        
+        return trades.stream()
+                .map(this::toDto)
+                .toList();
     }
 }
 

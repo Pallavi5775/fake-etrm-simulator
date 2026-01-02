@@ -2,14 +2,21 @@ package com.trading.ctrm.instrument;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.trading.ctrm.trade.InstrumentRepository;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/instruments")
-@CrossOrigin(origins = "*")
 public class InstrumentController {
 
     private final InstrumentRepository instrumentRepository;
@@ -167,5 +174,121 @@ public class InstrumentController {
             throw new IllegalArgumentException("Instrument not found: " + code);
         }
         instrumentRepository.delete(instrument);
+    }
+
+    /**
+     * Upload instruments from CSV file
+     * POST /api/instruments/upload-csv
+     * 
+     * CSV Format: instrumentType,instrumentCode,commodity,currency,unit,startDate,endDate,deliveryDate,strikePrice,expiryDate,optionType
+     */
+    @PostMapping("/upload-csv")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> uploadInstrumentsFromCsv(@RequestParam("file") MultipartFile file) {
+        List<Instrument> created = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        int lineNumber = 0;
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String line;
+            String[] headers = null;
+            
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                
+                if (lineNumber == 1) {
+                    headers = line.split(",");
+                    continue; // Skip header
+                }
+
+                try {
+                    String[] values = line.split(",", -1); // -1 to keep trailing empty strings
+                    Map<String, String> row = new HashMap<>();
+                    
+                    for (int i = 0; i < headers.length && i < values.length; i++) {
+                        row.put(headers[i].trim(), values[i].trim());
+                    }
+
+                    String instrumentType = row.get("instrumentType");
+                    String instrumentCode = row.get("instrumentCode");
+
+                    // Check if instrument already exists
+                    if (instrumentRepository.existsByInstrumentCode(instrumentCode)) {
+                        errors.add("Line " + lineNumber + ": Instrument code already exists: " + instrumentCode);
+                        continue;
+                    }
+
+                    Instrument instrument = null;
+
+                    switch (instrumentType.toUpperCase()) {
+                        case "POWER_FORWARD":
+                            PowerForwardInstrument powerForward = new PowerForwardInstrument();
+                            powerForward.setInstrumentCode(instrumentCode);
+                            powerForward.setCommodity(row.getOrDefault("commodity", "POWER"));
+                            powerForward.setCurrency(row.getOrDefault("currency", "EUR"));
+                            powerForward.setUnit(row.getOrDefault("unit", "MWh"));
+                            if (!row.get("startDate").isEmpty()) {
+                                powerForward.setStartDate(LocalDate.parse(row.get("startDate")));
+                            }
+                            if (!row.get("endDate").isEmpty()) {
+                                powerForward.setEndDate(LocalDate.parse(row.get("endDate")));
+                            }
+                            instrument = powerForward;
+                            break;
+
+                        case "GAS_FORWARD":
+                            GasForwardInstrument gasForward = new GasForwardInstrument();
+                            gasForward.setInstrumentCode(instrumentCode);
+                            gasForward.setCommodity(row.getOrDefault("commodity", "NATURAL_GAS"));
+                            gasForward.setCurrency(row.getOrDefault("currency", "EUR"));
+                            gasForward.setUnit(row.getOrDefault("unit", "MMBtu"));
+                            if (!row.get("deliveryDate").isEmpty()) {
+                                gasForward.setDeliveryDate(LocalDate.parse(row.get("deliveryDate")));
+                            }
+                            instrument = gasForward;
+                            break;
+
+                        case "COMMODITY_OPTION":
+                            CommodityOptionInstrument option = new CommodityOptionInstrument();
+                            option.setInstrumentCode(instrumentCode);
+                            option.setCommodity(row.getOrDefault("commodity", "POWER"));
+                            option.setCurrency(row.getOrDefault("currency", "EUR"));
+                            option.setUnit(row.getOrDefault("unit", "MWh"));
+                            if (!row.get("strikePrice").isEmpty()) {
+                                option.setStrikePrice(new BigDecimal(row.get("strikePrice")));
+                            }
+                            if (!row.get("expiryDate").isEmpty()) {
+                                option.setExpiryDate(LocalDate.parse(row.get("expiryDate")));
+                            }
+                            option.setOptionType(row.getOrDefault("optionType", "CALL"));
+                            instrument = option;
+                            break;
+
+                        default:
+                            errors.add("Line " + lineNumber + ": Unsupported instrument type: " + instrumentType);
+                            continue;
+                    }
+
+                    if (instrument != null) {
+                        Instrument saved = instrumentRepository.save(instrument);
+                        created.add(saved);
+                    }
+
+                } catch (Exception e) {
+                    errors.add("Line " + lineNumber + ": " + e.getMessage());
+                }
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse CSV file: " + e.getMessage(), e);
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("created", created.size());
+        response.put("errors", errors.size());
+        response.put("errorDetails", errors);
+        response.put("instruments", created);
+        
+        return response;
     }
 }

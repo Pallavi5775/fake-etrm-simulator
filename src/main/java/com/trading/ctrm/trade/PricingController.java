@@ -14,7 +14,6 @@ import com.trading.ctrm.pricing.PricingService;
 
 @RestController
 @RequestMapping("/api/pricing")
-@CrossOrigin(origins = "*")
 public class PricingController {
 
     private final PricingService pricingService;

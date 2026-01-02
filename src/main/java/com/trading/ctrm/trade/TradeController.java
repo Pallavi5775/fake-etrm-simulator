@@ -7,6 +7,7 @@ import com.trading.ctrm.trade.dto.ApprovalRequest;
 import com.trading.ctrm.trade.dto.RejectRequest;
 import com.trading.ctrm.trade.dto.TradeEventRequest;
 import com.trading.ctrm.trade.dto.TradeResponseDto;
+import com.trading.ctrm.trade.dto.BookFromTemplateRequest;
 
 import java.math.BigDecimal;
 
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/trades")
-@CrossOrigin(origins = "*")
 public class TradeController {
 
     private final TradeService tradeService;
@@ -38,23 +38,19 @@ public class TradeController {
         return toDto(trade);
     }
 
-    @PostMapping("/book-from-template/{templateId}")
-public TradeResponseDto bookFromTemplate(
-        @PathVariable Long templateId,
-        @RequestParam BigDecimal quantity,
-        @RequestParam BuySell buySell,
-        @RequestParam String counterparty,
-        @RequestParam String portfolio
-) {
-    Trade trade = tradeService.bookFromTemplate(
-        templateId,
-        quantity,
-        buySell,
-        counterparty,
-        portfolio
-    );
-    return toDto(trade);
-}
+    // @PreAuthorize("hasAnyRole('SENIOR_TRADER', 'HEAD_TRADER', 'ADMIN')")
+    @PostMapping("/book-from-template")
+    public TradeResponseDto bookFromTemplate(@RequestBody BookFromTemplateRequest request) {
+        Trade trade = tradeService.bookFromTemplate(
+            request.getTemplateId(),
+            request.getQuantity(),
+            request.getBuySell(),
+            request.getCounterparty(),
+            request.getPortfolio(),
+            request.getValuationConfig()
+        );
+        return toDto(trade);
+    }
 
 
     // ======================================
@@ -124,6 +120,12 @@ public TradeResponseDto bookFromTemplate(
         dto.setBuySell(trade.getBuySell());
         dto.setStatus(trade.getStatus());
         dto.setCreatedAt(trade.getCreatedAt());
+        dto.setCreatedBy(trade.getCreatedBy());
+        
+        // Valuation context
+        dto.setMtm(trade.getMtm());
+        dto.setCommodity(trade.getInstrument().getCommodity());
+        dto.setInstrumentType(trade.getInstrument().getInstrumentType().name());
 
         return dto;
     }

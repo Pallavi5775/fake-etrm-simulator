@@ -34,6 +34,17 @@ public class TradeResponseDto {
     private String pendingApprovalRole;
     private Integer currentApprovalLevel;
     private Long matchedRuleId;
+    
+    /** Created by user */
+    private String createdBy;
+    
+    /** Valuation context information */
+    private BigDecimal mtm;
+    private BigDecimal delta;
+    private BigDecimal gamma;
+    private BigDecimal vega;
+    private String commodity;
+    private String instrumentType;
 
     // ------------------------
     // Constructors
@@ -169,5 +180,61 @@ public class TradeResponseDto {
 
     public void setMatchedRuleId(Long matchedRuleId) {
         this.matchedRuleId = matchedRuleId;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public BigDecimal getMtm() {
+        return mtm;
+    }
+
+    public void setMtm(BigDecimal mtm) {
+        this.mtm = mtm;
+    }
+
+    public BigDecimal getDelta() {
+        return delta;
+    }
+
+    public void setDelta(BigDecimal delta) {
+        this.delta = delta;
+    }
+
+    public BigDecimal getGamma() {
+        return gamma;
+    }
+
+    public void setGamma(BigDecimal gamma) {
+        this.gamma = gamma;
+    }
+
+    public BigDecimal getVega() {
+        return vega;
+    }
+
+    public void setVega(BigDecimal vega) {
+        this.vega = vega;
+    }
+
+    public String getCommodity() {
+        return commodity;
+    }
+
+    public void setCommodity(String commodity) {
+        this.commodity = commodity;
+    }
+
+    public String getInstrumentType() {
+        return instrumentType;
+    }
+
+    public void setInstrumentType(String instrumentType) {
+        this.instrumentType = instrumentType;
     }
 }

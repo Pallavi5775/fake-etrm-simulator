@@ -1,24 +1,31 @@
 package com.trading.ctrm.pricing;
 
-import java.math.BigDecimal;
-
 import com.trading.ctrm.instrument.Instrument;
-import com.trading.ctrm.marketdata.MarketDataSnapshot;
 import com.trading.ctrm.trade.Trade;
+import com.trading.ctrm.rules.ValuationContext;
 
+/**
+ * Pricing Engine Interface - Endur-style with ValuationContext
+ * 
+ * Now accepts rich context for:
+ * - Market data selection (curves, surfaces)
+ * - Pricing model configuration
+ * - Risk calculation preferences
+ * - Accounting treatment
+ */
 public interface PricingEngine {
 
     /**
-     * Calculate MTM for a trade.
+     * Calculate comprehensive valuation for a trade using full context
      *
      * @param trade      Trade instance
      * @param instrument Instrument definition
-     * @param snapshot   Market data snapshot
-     * @return MTM value
+     * @param context    ValuationContext (market, pricing, risk, accounting)
+     * @return ValuationResult with MTM, Greeks, and risk metrics
      */
-    BigDecimal calculateMTM(
+    ValuationResult price(
             Trade trade,
             Instrument instrument,
-            MarketDataSnapshot snapshot
+            ValuationContext context
     );
 }

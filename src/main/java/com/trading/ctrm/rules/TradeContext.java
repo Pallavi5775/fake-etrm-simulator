@@ -1,59 +1,68 @@
 package com.trading.ctrm.rules;
 
+import com.trading.ctrm.trade.Trade;
+
 public class TradeContext {
 
-    private String tradeId;
-    private String counterparty;
-    private Double quantity;
-    private Double price;
-    private String instrumentType;
-    private String portfolio;
+    private final long tradeId;
+    private final double quantity;
+    private final String counterparty;
+    private final String portfolio;
+    private final String instrumentType;
+    private final String buySell;
 
-    public String getTradeId() {
-        return tradeId;
-    }
-
-    public void setTradeId(String tradeId) {
+    public TradeContext(
+            long tradeId,
+            double quantity,
+            String counterparty,
+            String portfolio,
+            String instrumentType,
+            String buySell
+    ) {
         this.tradeId = tradeId;
-    }
-
-    public String getCounterparty() {
-        return counterparty;
-    }
-
-    public void setCounterparty(String counterparty) {
-        this.counterparty = counterparty;
-    }
-
-    public Double getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(Double quantity) {
         this.quantity = quantity;
-    }
-
-    public Double getPrice() {
-        return price;
-    }
-
-    public void setPrice(Double price) {
-        this.price = price;
-    }
-
-    public String getInstrumentType() {
-        return instrumentType;
-    }
-
-    public void setInstrumentType(String instrumentType) {
-        this.instrumentType = instrumentType;
-    }
-
-    public String getPortfolio() {
-        return portfolio;
-    }
-
-    public void setPortfolio(String portfolio) {
+        this.counterparty = counterparty;
         this.portfolio = portfolio;
+        this.instrumentType = instrumentType;
+        this.buySell = buySell;
+    }
+
+    public long tradeId() { return tradeId; }
+    public double quantity() { return quantity; }
+    public String counterparty() { return counterparty; }
+    public String portfolio() { return portfolio; }
+    public String instrumentType() { return instrumentType; }
+    public String buySell() { return buySell; }
+
+    public static TradeContext of(
+            long tradeId,
+            double quantity,
+            String counterparty,
+            String portfolio,
+            String instrumentType,
+            String buySell
+    ) {
+        return new TradeContext(
+                tradeId,
+                quantity,
+                counterparty,
+                portfolio,
+                instrumentType,
+                buySell
+        );
+    }
+
+    /**
+     * Factory method to create TradeContext from a Trade entity
+     */
+    public static TradeContext fromTrade(Trade trade) {
+        return new TradeContext(
+                trade.getId(),
+                trade.getQuantity().doubleValue(),
+                trade.getCounterparty(),
+                trade.getPortfolio(),
+                trade.getInstrument().getInstrumentType().name(),
+                trade.getBuySell().name()
+        );
     }
 }

@@ -18,7 +18,7 @@ import jakarta.transaction.Transactional;
 
 @RestController
 @RequestMapping("/api/trades")
-@CrossOrigin(origins = "*")
+
 public class TradeEventController {
 
     private final TradeLifecycleEngine lifecycleEngine;

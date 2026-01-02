@@ -15,7 +15,7 @@ import com.trading.ctrm.lifestyle.dto.RejectRequest;
 
 @RestController
 @RequestMapping("/api/approvals")
-@CrossOrigin(origins = "*")
+
 public class ApprovalController {
 
     private final TradeLifecycleEngine lifecycleEngine;
