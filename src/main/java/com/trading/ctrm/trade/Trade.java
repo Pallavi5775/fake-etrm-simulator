@@ -3,6 +3,7 @@ import com.trading.ctrm.instrument.Instrument;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import com.trading.ctrm.trade.EnumType.BuySell;
@@ -61,6 +62,9 @@ public class Trade {
 
     @Column(name = "created_by")
     private String createdBy;
+
+    @Column(name = "trade_date")
+    private LocalDate tradeDate;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -220,5 +224,13 @@ public class Trade {
 
     public void setCreatedBy(String createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public LocalDate getTradeDate() {
+        return tradeDate;
+    }
+
+    public void setTradeDate(LocalDate tradeDate) {
+        this.tradeDate = tradeDate;
     }
 }

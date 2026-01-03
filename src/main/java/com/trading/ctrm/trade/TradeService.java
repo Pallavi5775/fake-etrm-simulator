@@ -25,6 +25,7 @@ import com.trading.ctrm.trade.dto.ValuationConfigRequest;
 import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.Optional;
@@ -88,7 +89,7 @@ public class TradeService {
         tradeLifecycleEngine.applyEvent(
                 saved,
                 TradeEventType.CREATED,
-                getCurrentUser(),
+                saved.getCreatedBy(),
                 "UI"
         );
 
@@ -105,6 +106,8 @@ public Trade bookFromTemplate(
         BuySell buySell,
         String counterparty,
         String portfolio,
+        String createdByUser,
+        LocalDate tradeDate,
         ValuationConfigRequest valuationConfig
 ) {
 
@@ -129,10 +132,16 @@ public Trade bookFromTemplate(
     );
 
     // ===== SYSTEM FIELDS =====
-    trade.setTradeId(UUID.randomUUID().toString());
+    String tradeIdPrefix = "TRD-" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+    long tradeCount = tradeRepository.count() + 1;
+    trade.setTradeId(tradeIdPrefix + "-" + String.format("%04d", tradeCount));
     trade.setCreatedAt(LocalDateTime.now());
     trade.setStatus(TradeStatus.CREATED);
-    trade.setCreatedBy(getCurrentUser());
+    trade.setCreatedBy(createdByUser != null ? createdByUser : "UNKNOWN_USER");
+    trade.setTradeDate(tradeDate != null ? tradeDate : LocalDate.now());
+
+    // ===== SAVE TRADE TO GENERATE ID (needed for valuation context) =====
+    trade = tradeRepository.save(trade);
 
     // ===== AUTO-APPROVAL CHECK =====
     if (template.isAutoApprovalAllowed()) {
@@ -201,7 +210,7 @@ public Trade bookFromTemplate(
         Trade updated = tradeLifecycleEngine.applyEvent(
                 trade,
                 eventType,
-                getCurrentUser(),
+                trade.getCreatedBy(),
                 "UI"
         );
 
@@ -212,10 +221,6 @@ public Trade bookFromTemplate(
         }
 
         return updated;
-    }
-
-    private String getCurrentUser() {
-        return "FO_USER";
     }
 
     public Trade findByTradeId(String tradeId) {
@@ -292,6 +297,14 @@ public Trade bookFromTemplate(
                 config.getSourceSystem()
             ))
             .build();
+    }
+
+    /**
+     * Save or update a trade
+     */
+    @Transactional
+    public Trade saveTrade(Trade trade) {
+        return tradeRepository.save(trade);
     }
 
     

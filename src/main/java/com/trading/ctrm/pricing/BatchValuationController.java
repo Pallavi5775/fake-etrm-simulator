@@ -71,15 +71,17 @@ public class BatchValuationController {
      */
     @PostMapping("/pnl/calculate")
     public ResponseEntity<Map<String, Object>> calculatePnl(@RequestBody PnlCalculationRequest request) {
-        log.info("Calculating P&L for date: {}", request.getPnlDate());
+        // Default to today if pnlDate is null
+        LocalDate pnlDate = request.getPnlDate() != null ? request.getPnlDate() : LocalDate.now();
+        log.info("Calculating P&L for date: {}", pnlDate);
 
-        pnlAttributionService.calculateDailyPnl(request.getPnlDate());
+        pnlAttributionService.calculateDailyPnl(pnlDate);
 
-        BigDecimal totalPnl = pnlAttributionService.getTotalPnl(request.getPnlDate());
-        List<PnlExplain> pnlDetails = pnlAttributionService.getPnlForDate(request.getPnlDate());
+        BigDecimal totalPnl = pnlAttributionService.getTotalPnl(pnlDate);
+        List<PnlExplain> pnlDetails = pnlAttributionService.getPnlForDate(pnlDate);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("pnlDate", request.getPnlDate());
+        response.put("pnlDate", pnlDate);
         response.put("totalPnl", totalPnl);
         response.put("tradeCount", pnlDetails.size());
         response.put("details", pnlDetails);

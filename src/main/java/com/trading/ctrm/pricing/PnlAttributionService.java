@@ -24,14 +24,17 @@ public class PnlAttributionService {
     private final TradeRepository tradeRepository;
     private final ValuationResultRepository valuationResultRepository;
     private final PnlExplainRepository pnlExplainRepository;
+    private final PricingService pricingService;
 
     public PnlAttributionService(
             TradeRepository tradeRepository,
             ValuationResultRepository valuationResultRepository,
-            PnlExplainRepository pnlExplainRepository) {
+            PnlExplainRepository pnlExplainRepository,
+            PricingService pricingService) {
         this.tradeRepository = tradeRepository;
         this.valuationResultRepository = valuationResultRepository;
         this.pnlExplainRepository = pnlExplainRepository;
+        this.pricingService = pricingService;
     }
 
     /**
@@ -43,11 +46,21 @@ public class PnlAttributionService {
 
         LocalDate previousDate = pnlDate.minusDays(1);
 
-        // Get all active trades
-        List<Trade> trades = tradeRepository.findByStatus(com.trading.ctrm.trade.TradeStatus.BOOKED);
+        // Get all active trades (APPROVED or BOOKED status)
+        List<Trade> approvedTrades = tradeRepository.findByStatus(com.trading.ctrm.trade.TradeStatus.APPROVED);
+        List<Trade> bookedTrades = tradeRepository.findByStatus(com.trading.ctrm.trade.TradeStatus.BOOKED);
+        
+        log.info("Found {} approved trades and {} booked trades", approvedTrades.size(), bookedTrades.size());
+        
+        // Combine both lists
+        List<Trade> trades = new java.util.ArrayList<>(approvedTrades);
+        trades.addAll(bookedTrades);
+        
+        log.info("Total trades to calculate P&L for: {}", trades.size());
 
         for (Trade trade : trades) {
             try {
+                log.info("Calculating P&L for trade: {}", trade.getTradeId());
                 calculateTradePnl(trade, pnlDate, previousDate);
             } catch (Exception e) {
                 log.error("Failed to calculate P&L for trade: {}", trade.getTradeId(), e);
@@ -64,94 +77,31 @@ public class PnlAttributionService {
     public PnlExplain calculateTradePnl(Trade trade, LocalDate pnlDate, LocalDate previousDate) {
         log.debug("Calculating P&L for trade: {}", trade.getTradeId());
 
-        // Get valuations for T0 and T1
-        Optional<ValuationResult> valT0Opt = valuationResultRepository
-            .findByTradeIdAndPricingDate(trade.getId(), previousDate);
-        Optional<ValuationResult> valT1Opt = valuationResultRepository
-            .findByTradeIdAndPricingDate(trade.getId(), pnlDate);
+        try {
+            // Calculate MTM using forward curve pricing
+            BigDecimal mtmT1 = pricingService.calculateMTM(trade, pnlDate);
+            BigDecimal mtmT0 = pricingService.calculateMTM(trade, previousDate);
+            
+            BigDecimal totalPnl = mtmT1.subtract(mtmT0);
 
-        if (valT0Opt.isEmpty() || valT1Opt.isEmpty()) {
-            log.warn("Missing valuations for trade {}: T0={}, T1={}", 
-                trade.getTradeId(), valT0Opt.isPresent(), valT1Opt.isPresent());
+            // Create P&L explain
+            PnlExplain pnl = new PnlExplain();
+            pnl.setTradeId(trade.getId());
+            pnl.setPnlDate(pnlDate);
+            pnl.setTotalPnl(totalPnl);
+            pnl.setPnlSpotMove(totalPnl); // All P&L attributed to spot move for now
+            pnl.setUnexplained(BigDecimal.ZERO);
+
+            // Save P&L explain
+            pnlExplainRepository.save(pnl);
+
+            log.debug("Trade {} P&L: {}", trade.getTradeId(), totalPnl);
+            return pnl;
+            
+        } catch (Exception e) {
+            log.error("Failed to calculate P&L for trade {}: {}", trade.getTradeId(), e.getMessage());
             return null;
         }
-
-        ValuationResult valT0 = valT0Opt.get();
-        ValuationResult valT1 = valT1Opt.get();
-
-        // Create P&L explain
-        PnlExplain pnl = new PnlExplain();
-        pnl.setTradeId(trade.getId());
-        pnl.setPnlDate(pnlDate);
-        pnl.setValuationT0(valT0.getResultId());
-        pnl.setValuationT1(valT1.getResultId());
-
-        // Calculate total P&L
-        BigDecimal totalPnl = valT1.getMtmTotal().subtract(valT0.getMtmTotal());
-        pnl.setTotalPnl(totalPnl);
-
-        // Attribution by component
-        // 1. Spot move (delta * spot change)
-        BigDecimal spotPnl = calculateSpotPnl(valT0, valT1);
-        pnl.setPnlSpotMove(spotPnl);
-
-        // 2. Forward curve move
-        BigDecimal curvePnl = calculateCurvePnl(valT0, valT1);
-        pnl.setPnlCurveMove(curvePnl);
-
-        // 3. Volatility move (vega * vol change)
-        BigDecimal volPnl = calculateVolPnl(valT0, valT1);
-        pnl.setPnlVolMove(volPnl);
-
-        // 4. Time decay (theta)
-        BigDecimal thetaPnl = valT0.getTheta() != null ? valT0.getTheta() : BigDecimal.ZERO;
-        pnl.setPnlTimeDecay(thetaPnl);
-
-        // 5. Carry (interest/dividend accrual)
-        BigDecimal carryPnl = BigDecimal.ZERO; // Simplified
-        pnl.setPnlCarry(carryPnl);
-
-        // 6. Calculate unexplained
-        BigDecimal explained = spotPnl.add(curvePnl).add(volPnl).add(thetaPnl).add(carryPnl);
-        BigDecimal unexplained = totalPnl.subtract(explained);
-        pnl.setUnexplained(unexplained);
-
-        log.debug("Trade {} P&L: Total={}, Spot={}, Curve={}, Vol={}, Theta={}, Unexplained={}",
-            trade.getTradeId(), totalPnl, spotPnl, curvePnl, volPnl, thetaPnl, unexplained);
-
-        return pnlExplainRepository.save(pnl);
-    }
-
-    /**
-     * Calculate spot P&L (delta * spot change)
-     */
-    private BigDecimal calculateSpotPnl(ValuationResult valT0, ValuationResult valT1) {
-        if (valT0.getMtmSpot() == null || valT1.getMtmSpot() == null) {
-            return BigDecimal.ZERO;
-        }
-        return valT1.getMtmSpot().subtract(valT0.getMtmSpot());
-    }
-
-    /**
-     * Calculate forward curve P&L
-     */
-    private BigDecimal calculateCurvePnl(ValuationResult valT0, ValuationResult valT1) {
-        if (valT0.getMtmForward() == null || valT1.getMtmForward() == null) {
-            return BigDecimal.ZERO;
-        }
-        return valT1.getMtmForward().subtract(valT0.getMtmForward());
-    }
-
-    /**
-     * Calculate volatility P&L (vega * vol change)
-     */
-    private BigDecimal calculateVolPnl(ValuationResult valT0, ValuationResult valT1) {
-        // Simplified: use vega if available
-        if (valT0.getVega() == null) {
-            return BigDecimal.ZERO;
-        }
-        // In real implementation, would calculate implied vol change
-        return BigDecimal.ZERO;
     }
 
     /**

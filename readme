@@ -1,123 +1,127 @@
-Step 1️⃣ Instrument modeling ✅ (now)
+Authentic Trade Example & Approval Flow
+Trade Parameters
+Scenario: Senior trader books a large power forward trade
 
-Power Forward
+Template Details (ID=3):
 
-Renewable PPA
+Template Name: "Head Trader Power Q1"
+Instrument: PWR-Q1-25 (Power Forward Q1 2025)
+Commodity: POWER
+Unit: MWh
+Currency: EUR
+Default Quantity: 5000 MWh
+Default Price: 55.00 EUR/MWh
+Auto-Approval Allowed: false
+MTM Approval Threshold: 1,000,000 EUR
+Trade Valuation:
 
-Step 2️⃣ Deal Templates
+Notional Value: 15,000 MWh × 65.50 EUR = 982,500 EUR
+MTM (Mark-to-Market): 1,150,000 EUR
+Delta: 15,000
+Gamma: 0 (forward has no gamma)
+Vega: 0 (no volatility exposure)
+Approval Rules Configuration
+Rule 1: High Value Trade Approval
+Matches: ✅ quantity (15000) > 1000
 
-Each template references one instrument
+Rule 2: Very High Value Multi-Level
+Matches: ✅ quantity (15000) > 10000
 
-No pricing yet
+Rule Selection:
+System picks Rule 2 (higher priority = 2 vs 1)
 
-Step 3️⃣ Pricing Engines
+Approval Flow Timeline
+Step 1: Trade Booking
+User: pallavi_trade (Role: TRADER)
+Time: 2026-01-03 10:30:00
+Action: POST /api/templates/3/book
 
-One per instrument type
+System Response:
 
-Step 4️⃣ MTM-based approvals
+Database State:
 
-TPM + USDR consume MTM
+Notification Sent:
 
+To: All users with role SENIOR_TRADER
+Message: "Trade TRD-2026-0103-001 requires your approval (Level 1 of 3)"
+Step 2: Level 1 Approval
+User: john_senior (Role: SENIOR_TRADER)
+Time: 2026-01-03 11:15:00 (45 minutes later)
+Action: POST /api/trades/TRD-2026-0103-001/approve
 
-Amend / Cancel trade flows
+Request Headers:
 
+Request Body:
 
+System Processing:
 
+Validates john_senior has role SENIOR_TRADER ✅
+Checks trade is at level 1 with pending role SENIOR_TRADER ✅
+Looks up Rule 2 routing for next level
+Finds Level 2: HEAD_TRADER
+Updates trade:
+current_approval_level = 2
+pending_approval_role = HEAD_TRADER
+status remains PENDING_APPROVAL
+System Response:
 
-🔹 A. approval_rule (rule header)
-CREATE TABLE approval_rule (
-    rule_id            BIGSERIAL PRIMARY KEY,
-    rule_name          VARCHAR(100) NOT NULL,
-    description        TEXT,
+Notification Sent:
 
-    trigger_event      VARCHAR(30) NOT NULL,   -- TRADE_BOOK, AMEND, REPRICE
-    instrument_scope   VARCHAR(30),             -- PHYSICAL, FINANCIAL
-    deal_type          VARCHAR(50),
+To: All users with role HEAD_TRADER
+Message: "Trade TRD-2026-0103-001 requires your approval (Level 2 of 3)"
+Step 3: Level 2 Approval
+User: sarah_head_trader (Role: HEAD_TRADER)
+Time: 2026-01-03 14:30:00 (3 hours 15 minutes later)
+Action: POST /api/trades/TRD-2026-0103-001/approve
 
-    priority           INT NOT NULL DEFAULT 100,
-    active             BOOLEAN NOT NULL DEFAULT TRUE,
+Request Body:
 
-    effective_from     TIMESTAMP,
-    effective_to       TIMESTAMP,
+System Processing:
 
-    created_by         VARCHAR(50),
-    created_at         TIMESTAMP DEFAULT now(),
-    last_modified_by   VARCHAR(50),
-    last_modified_at   TIMESTAMP,
+Validates sarah_head_trader has role HEAD_TRADER ✅
+Checks trade is at level 2 with pending role HEAD_TRADER ✅
+Looks up Rule 2 routing for next level
+Finds Level 3: CFO (final level)
+Updates trade:
+current_approval_level = 3
+pending_approval_role = CFO
+status remains PENDING_APPROVAL
+System Response:
 
-    version            INT DEFAULT 1
-);
+Notification Sent:
 
+To: All users with role CFO
+Message: "Trade TRD-2026-0103-001 requires your FINAL approval (Level 3 of 3)"
+Subject: "HIGH VALUE TRADE - Final Approval Required"
+Step 4: Final Approval (Level 3)
+User: michael_cfo (Role: CFO)
+Time: 2026-01-03 16:45:00 (2 hours 15 minutes later)
+Action: POST /api/trades/TRD-2026-0103-001/approve
 
-🔑 Why
+Request Body:
 
-priority → deterministic evaluation order
+System Processing:
 
-trigger_event → prevents rules firing randomly
+Validates michael_cfo has role CFO ✅
+Checks trade is at level 3 with pending role CFO ✅
+Looks up Rule 2 routing for next level
+No Level 4 found - this is the final approval!
+Updates trade:
+status = APPROVED
+current_approval_level = NULL
+pending_approval_role = NULL
+approved_at = 2026-01-03T16:45:00
+approved_by = michael_cfo
+System Response:
 
-version → Endur supports rule versioning
+Notifications Sent:
 
-effective_from/to → regulatory requirement
+To: pallavi_trade (original trader)
+"Your trade TRD-2026-0103-001 has been FULLY APPROVED"
+To: All approvers (john_senior, sarah_head_trader, michael_cfo)
+"Trade TRD-2026-0103-001 is now confirmed and active"
+To: Risk team
+"New approved trade: €1.15M MTM added to POWER_TRADING_DESK"
+Final Trade State
+Result:
 
-🔹 B. approval_rule_condition (controlled conditions)
-CREATE TABLE approval_rule_condition (
-    condition_id   BIGSERIAL PRIMARY KEY,
-    rule_id        BIGINT REFERENCES approval_rule(rule_id),
-
-    field_code     VARCHAR(50) NOT NULL,   -- QUANTITY, COUNTERPARTY, MTM
-    operator       VARCHAR(20) NOT NULL,   -- >, IN, BETWEEN
-    value_1        VARCHAR(100) NOT NULL,
-    value_2        VARCHAR(100),
-
-    logical_group  INT DEFAULT 1,           -- AND/OR grouping
-    sequence       INT NOT NULL
-);
-
-
-🔑 Key rule
-
-field_code must come from a controlled dictionary
-
-No SQL
-
-No expressions
-
-No scripting
-
-This is exactly how Endur avoids backend chaos.
-
-🔹 C. approval_routing (who approves)
-CREATE TABLE approval_routing (
-    routing_id      BIGSERIAL PRIMARY KEY,
-    rule_id         BIGINT REFERENCES approval_rule(rule_id),
-
-    approval_role   VARCHAR(30) NOT NULL,  -- RISK, CREDIT
-    approval_level  INT NOT NULL,           -- L1, L2
-    sequence        INT NOT NULL,            -- sequential approvals
-    parallel_group  INT                     -- parallel approvals
-);
-
-
-Supports:
-
-Risk → Credit
-
-Risk + Credit
-
-Escalations later
-
-🔹 D. Reference dictionaries (CRITICAL)
-CREATE TABLE approval_field_dictionary (
-    field_code     VARCHAR(50) PRIMARY KEY,
-    data_type      VARCHAR(20),   -- NUMBER, STRING, ENUM
-    description    TEXT
-);
-
-CREATE TABLE approval_operator_dictionary (
-    operator       VARCHAR(20) PRIMARY KEY,
-    applicable_type VARCHAR(20)
-);
-
-
-⚠️ Consultants cannot invent fields
-They only select from this list.

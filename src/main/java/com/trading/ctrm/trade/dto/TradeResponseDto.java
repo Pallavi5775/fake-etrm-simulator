@@ -4,6 +4,7 @@ import com.trading.ctrm.trade.EnumType.BuySell;
 import com.trading.ctrm.trade.TradeStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class TradeResponseDto {
@@ -30,10 +31,14 @@ public class TradeResponseDto {
     /** Optional but useful for UI */
     private LocalDateTime createdAt;
     
+    /** Trade date */
+    private LocalDate tradeDate;
+    
     /** Approval workflow fields */
     private String pendingApprovalRole;
     private Integer currentApprovalLevel;
     private Long matchedRuleId;
+    private String matchedRuleName;
     
     /** Created by user */
     private String createdBy;
@@ -151,6 +156,14 @@ public class TradeResponseDto {
         this.createdAt = createdAt;
     }
 
+    public LocalDate getTradeDate() {
+        return tradeDate;
+    }
+
+    public void setTradeDate(LocalDate tradeDate) {
+        this.tradeDate = tradeDate;
+    }
+
     public long getAmendCount() {
         return amendCount;
     }
@@ -180,6 +193,14 @@ public class TradeResponseDto {
 
     public void setMatchedRuleId(Long matchedRuleId) {
         this.matchedRuleId = matchedRuleId;
+    }
+
+    public String getMatchedRuleName() {
+        return matchedRuleName;
+    }
+
+    public void setMatchedRuleName(String matchedRuleName) {
+        this.matchedRuleName = matchedRuleName;
     }
 
     public String getCreatedBy() {

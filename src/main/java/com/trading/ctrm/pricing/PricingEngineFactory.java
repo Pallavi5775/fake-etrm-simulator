@@ -3,21 +3,21 @@ package com.trading.ctrm.pricing;
 import org.springframework.stereotype.Component;
 
 import com.trading.ctrm.instrument.InstrumentType;
-import com.trading.ctrm.marketdata.MarketDataService;
+import com.trading.ctrm.trade.ForwardCurveRepository;
 
 
 @Component
 public class PricingEngineFactory {
 
-    private final MarketDataService marketDataService;
+    private final ForwardCurveRepository forwardCurveRepository;
 
-    public PricingEngineFactory(MarketDataService marketDataService) {
-        this.marketDataService = marketDataService;
+    public PricingEngineFactory(ForwardCurveRepository forwardCurveRepository) {
+        this.forwardCurveRepository = forwardCurveRepository;
     }
 
     public PricingEngine getEngine(InstrumentType type) {
         return switch (type) {
-            case POWER_FORWARD -> new PowerForwardPricingEngine(marketDataService);
+            case POWER_FORWARD -> new PowerForwardPricingEngine(forwardCurveRepository);
             default -> throw new IllegalArgumentException("No pricing engine for: " + type);
         };
     }

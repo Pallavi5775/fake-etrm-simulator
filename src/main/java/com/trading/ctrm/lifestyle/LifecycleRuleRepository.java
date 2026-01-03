@@ -19,7 +19,9 @@ public interface LifecycleRuleRepository
         WHERE r.enabled = true
           AND r.fromStatus = :fromStatus
           AND r.eventType = :eventType
-          AND r.desk = :desk
+          AND (r.desk = :desk OR r.desk = 'ALL')
+        ORDER BY CASE WHEN r.desk = :desk THEN 0 ELSE 1 END
+        LIMIT 1
     """)
     Optional<LifecycleRule> findRule(
             @Param("fromStatus") TradeStatus fromStatus,

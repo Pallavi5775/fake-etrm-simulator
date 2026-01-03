@@ -1,6 +1,9 @@
 package com.trading.ctrm.trade;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.trading.ctrm.rules.ApprovalRuleRepository;
 import com.trading.ctrm.trade.dto.TradeResponseDto;
 
 
@@ -20,10 +24,12 @@ public class TradeQueryController {
 
     private final TradeRepository tradeRepository;
     private final TradeEventRepository tradeEventRepository;
+    private final ApprovalRuleRepository approvalRuleRepository;
 
-    public TradeQueryController(TradeRepository tradeRepository, TradeEventRepository tradeEventRepository) {
+    public TradeQueryController(TradeRepository tradeRepository, TradeEventRepository tradeEventRepository, ApprovalRuleRepository approvalRuleRepository) {
         this.tradeRepository = tradeRepository;
         this.tradeEventRepository = tradeEventRepository;
+        this.approvalRuleRepository = approvalRuleRepository;
     }
 
     // 1️⃣ All trades (Trade Blotter) - supports filtering by status and role
@@ -63,11 +69,18 @@ public class TradeQueryController {
     dto.setStatus(trade.getStatus());
     dto.setCreatedAt(trade.getCreatedAt());
     dto.setCreatedBy(trade.getCreatedBy());
+    dto.setTradeDate(trade.getTradeDate());
     
     // ✅ Approval workflow fields
     dto.setPendingApprovalRole(trade.getPendingApprovalRole());
     dto.setCurrentApprovalLevel(trade.getCurrentApprovalLevel());
     dto.setMatchedRuleId(trade.getMatchedRuleId());
+    
+    // Fetch matched rule name if rule ID exists
+    if (trade.getMatchedRuleId() != null) {
+        approvalRuleRepository.findById(trade.getMatchedRuleId())
+            .ifPresent(rule -> dto.setMatchedRuleName(rule.getRuleName()));
+    }
     
     // ✅ Valuation context information
     dto.setMtm(trade.getMtm());
@@ -137,6 +150,43 @@ public class TradeQueryController {
         return trades.stream()
                 .map(this::toDto)
                 .toList();
+    }
+    
+    // 6️⃣ Get all pending approvals
+    @GetMapping("/approval/pending")
+    public List<TradeResponseDto> getPendingApprovals(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String role) {
+        
+        List<Trade> trades;
+        
+        if (role != null && !role.isEmpty()) {
+            // Filter by specific role
+            trades = tradeRepository.findByStatusAndPendingApprovalRole(TradeStatus.PENDING_APPROVAL, role);
+        } else {
+            // All pending approvals
+            trades = tradeRepository.findByStatus(TradeStatus.PENDING_APPROVAL);
+        }
+        
+        return trades.stream()
+                .map(this::toDto)
+                .toList();
+    }
+    
+    // 7️⃣ Get all available trade statuses
+    @GetMapping("/statuses")
+    public List<Map<String, String>> getAllStatuses() {
+        return Arrays.stream(TradeStatus.values())
+                .map(status -> Map.of(
+                    "code", status.name(),
+                    "name", formatStatusName(status.name())
+                ))
+                .collect(Collectors.toList());
+    }
+    
+    private String formatStatusName(String status) {
+        return Arrays.stream(status.split("_"))
+                .map(word -> word.charAt(0) + word.substring(1).toLowerCase())
+                .collect(Collectors.joining(" "));
     }
 }
 

@@ -41,9 +41,9 @@ public class PricingService {
 
     public BigDecimal calculateMTM(Trade trade, LocalDate deliveryDate) {
 
-        // 1️⃣ Fetch forward curve for the trade’s instrument
+        // 1️⃣ Fetch latest forward curve for the trade's instrument
         ForwardCurve curve = curveRepo
-            .findByInstrumentAndDeliveryDate(
+            .findLatestByInstrumentAndDeliveryDate(
                     trade.getInstrument(),
                     deliveryDate
             )
