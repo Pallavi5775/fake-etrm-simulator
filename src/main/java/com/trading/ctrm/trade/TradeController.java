@@ -13,8 +13,14 @@ import com.trading.ctrm.trade.dto.BookFromTemplateRequest;
 import com.trading.ctrm.trade.dto.AmendTradeRequest;
 import com.trading.ctrm.trade.dto.SettleTradeRequest;
 import com.trading.ctrm.trade.dto.CancelTradeRequest;
+import com.trading.ctrm.trade.dto.MultiLegTradeRequest;
+import com.trading.ctrm.trade.dto.ValuationResponseDto;
+import com.trading.ctrm.trade.dto.TradeEventDto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.ArrayList;
 
 import org.springframework.web.bind.annotation.*;
 
@@ -49,6 +55,22 @@ public class TradeController {
             @RequestBody TradeEventRequest req) {
 
         Trade trade = tradeService.bookTrade(req);
+        return toDto(trade);
+    }
+
+    /**
+     * Get trade by tradeId
+     */
+    @GetMapping("/{tradeId}")
+    public TradeResponseDto getTrade(@PathVariable String tradeId) {
+        Trade trade = tradeService.findByTradeId(tradeId);
+        
+        // If it's a multi-leg trade, fetch and attach legs
+        if (Boolean.TRUE.equals(trade.getIsMultiLeg())) {
+            List<TradeLeg> legs = tradeService.getTradeLegs(tradeId);
+            trade.setLegs(legs);
+        }
+        
         return toDto(trade);
     }
 
@@ -115,7 +137,120 @@ public class TradeController {
     }
 
     // ===============================
-    // 4️⃣ APPROVE / REJECT TRADE
+    // 4️⃣ GET VALUATIONS FOR TRADE (Single or Multi-Leg)
+    // ===============================
+    @GetMapping("/{tradeId}/valuations")
+    public ValuationResponseDto getValuations(@PathVariable String tradeId) {
+        Trade trade = tradeService.findByTradeId(tradeId);
+        LocalDate valuationDate = LocalDate.now();
+        
+        ValuationResponseDto response = new ValuationResponseDto();
+        response.setTradeId(tradeId);
+        response.setValuationDate(valuationDate);
+        response.setIsMultiLeg(trade.getIsMultiLeg());
+        response.setStrategyType(trade.getStrategyType() != null ? trade.getStrategyType().name() : null);
+        
+        if (Boolean.TRUE.equals(trade.getIsMultiLeg())) {
+            // Multi-leg valuation
+            List<TradeLeg> legs = tradeService.getTradeLegs(tradeId);
+            List<ValuationResponseDto.LegValuationDto> legValuations = new ArrayList<>();
+            BigDecimal totalMtm = BigDecimal.ZERO;
+            
+            for (TradeLeg leg : legs) {
+                ValuationResponseDto.LegValuationDto legVal = new ValuationResponseDto.LegValuationDto();
+                legVal.setLegNumber(leg.getLegNumber());
+                legVal.setInstrumentCode(leg.getInstrument().getInstrumentCode());
+                legVal.setBuySell(leg.getBuySell().name());
+                legVal.setQuantity(leg.getQuantity());
+                legVal.setTradePrice(leg.getPrice());
+                legVal.setDeliveryDate(leg.getDeliveryDate());
+                
+                try {
+                    // Get market price from forward curve
+                    LocalDate deliveryDate = leg.getDeliveryDate() != null ? 
+                        leg.getDeliveryDate() : trade.getTradeDate();
+                    
+                    com.trading.ctrm.trade.ForwardCurve curve = tradeService.findLatestForwardCurve(
+                        leg.getInstrument(), deliveryDate);
+                    
+                    BigDecimal marketPrice = BigDecimal.valueOf(curve.getPrice());
+                    legVal.setMarketPrice(marketPrice);
+                    
+                    // Calculate MTM for this leg
+                    BigDecimal priceDiff = marketPrice.subtract(leg.getPrice());
+                    BigDecimal legMtm = priceDiff.multiply(leg.getQuantity());
+                    
+                    // Apply buy/sell direction
+                    if (leg.getBuySell() == com.trading.ctrm.trade.EnumType.BuySell.SELL) {
+                        legMtm = legMtm.negate();
+                    }
+                    
+                    // Apply ratio
+                    legMtm = legMtm.multiply(leg.getRatio());
+                    
+                    legVal.setMtm(legMtm);
+                    legVal.setPnl(legMtm);
+                    
+                    totalMtm = totalMtm.add(legMtm);
+                } catch (Exception e) {
+                    legVal.setMarketPrice(leg.getPrice());
+                    legVal.setMtm(BigDecimal.ZERO);
+                    legVal.setPnl(BigDecimal.ZERO);
+                }
+                
+                legValuations.add(legVal);
+            }
+            
+            response.setLegValuations(legValuations);
+            response.setTotalMtm(totalMtm);
+            response.setTotalPnl(totalMtm);
+            response.setPricingModel("ForwardCurve");
+            
+        } else {
+            // Single leg valuation
+            ValuationResponseDto.LegValuationDto singleVal = new ValuationResponseDto.LegValuationDto();
+            singleVal.setLegNumber(1);
+            singleVal.setInstrumentCode(trade.getInstrument().getInstrumentCode());
+            singleVal.setBuySell(trade.getBuySell().name());
+            singleVal.setQuantity(trade.getQuantity());
+            singleVal.setTradePrice(trade.getPrice());
+            singleVal.setDeliveryDate(trade.getTradeDate());
+            
+            try {
+                LocalDate deliveryDate = trade.getTradeDate() != null ? 
+                    trade.getTradeDate() : LocalDate.now();
+                
+                BigDecimal mtm = pricingService.calculateMTM(trade, deliveryDate);
+                
+                // Get market price
+                com.trading.ctrm.trade.ForwardCurve curve = tradeService.findLatestForwardCurve(
+                    trade.getInstrument(), deliveryDate);
+                
+                singleVal.setMarketPrice(BigDecimal.valueOf(curve.getPrice()));
+                singleVal.setMtm(mtm);
+                singleVal.setPnl(mtm);
+                
+                response.setSingleLegValuation(singleVal);
+                response.setTotalMtm(mtm);
+                response.setTotalPnl(mtm);
+                response.setPricingModel("ForwardCurve");
+            } catch (Exception e) {
+                singleVal.setMarketPrice(trade.getPrice());
+                singleVal.setMtm(trade.getMtm() != null ? trade.getMtm() : BigDecimal.ZERO);
+                singleVal.setPnl(trade.getMtm() != null ? trade.getMtm() : BigDecimal.ZERO);
+                
+                response.setSingleLegValuation(singleVal);
+                response.setTotalMtm(trade.getMtm() != null ? trade.getMtm() : BigDecimal.ZERO);
+                response.setTotalPnl(trade.getMtm() != null ? trade.getMtm() : BigDecimal.ZERO);
+                response.setPricingModel("Stored");
+            }
+        }
+        
+        return response;
+    }
+
+    // ===============================
+    // 5️⃣ APPROVE / REJECT TRADE
     // ===============================
     @PostMapping("/{tradeId}/approve")
     public TradeResponseDto approveTrade(
@@ -274,7 +409,70 @@ public class TradeController {
         dto.setMtm(trade.getMtm());
         dto.setCommodity(trade.getInstrument().getCommodity());
         dto.setInstrumentType(trade.getInstrument().getInstrumentType().name());
+        
+        // Multi-leg trade fields
+        dto.setIsMultiLeg(trade.getIsMultiLeg());
+        dto.setStrategyType(trade.getStrategyType());
+        if (trade.getLegs() != null && !trade.getLegs().isEmpty()) {
+            dto.setLegs(trade.getLegs().stream()
+                .map(this::toLegDto)
+                .collect(java.util.stream.Collectors.toList()));
+        }
 
         return dto;
     }
+    
+    /**
+     * Convert TradeLeg entity to DTO
+     */
+    private com.trading.ctrm.trade.dto.TradeLegDto toLegDto(TradeLeg leg) {
+        com.trading.ctrm.trade.dto.TradeLegDto dto = new com.trading.ctrm.trade.dto.TradeLegDto();
+        dto.setLegNumber(leg.getLegNumber());
+        dto.setInstrumentCode(leg.getInstrument().getInstrumentCode());
+        dto.setBuySell(leg.getBuySell());
+        dto.setQuantity(leg.getQuantity());
+        dto.setPrice(leg.getPrice());
+        dto.setRatio(leg.getRatio());
+        dto.setDeliveryDate(leg.getDeliveryDate());
+        dto.setMtm(leg.getMtm());
+        return dto;
+    }
+
+    // ===============================
+    // MULTI-LEG TRADING ENDPOINTS
+    // ===============================
+    
+    /**
+     * Book a multi-leg trade (spread, butterfly, straddle, etc.)
+     */
+    @PostMapping("/multi-leg")
+    public TradeResponseDto bookMultiLegTrade(@RequestBody MultiLegTradeRequest request) {
+        Trade trade = tradeService.bookMultiLegTrade(request);
+        return toDto(trade);
+    }
+    
+    /**
+     * Get legs for a multi-leg trade
+     */
+    @GetMapping("/{tradeId}/legs")
+    public List<TradeLeg> getTradeLegs(@PathVariable String tradeId) {
+        return tradeService.getTradeLegs(tradeId);
+    }
+
+    /**
+     * Get audit trail (event history) for a trade
+     */
+    @GetMapping("/{tradeId}/events")
+    public List<TradeEventDto> getTradeEvents(@PathVariable String tradeId) {
+        return tradeService.getTradeEvents(tradeId);
+    }
+
+    /**
+     * Get all available trade event types
+     */
+    @GetMapping("/event-types")
+    public TradeEventType[] getEventTypes() {
+        return TradeEventType.values();
+    }
+
 }

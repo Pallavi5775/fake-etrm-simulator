@@ -13,8 +13,9 @@ public abstract class Instrument {
 
     @Column(unique = true, nullable = false)
     private String instrumentCode;   // POWER_JAN25
-
-    private String commodity;         // POWER, GAS
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "commodity_id")
+    private Commodity commodity;
     private String currency;          // EUR
     private String unit;              // MWh
 
@@ -36,10 +37,21 @@ public abstract class Instrument {
     }
 
     public String getCommodity() {
+        return commodity != null ? commodity.getName() : null;
+    }
+
+    /**
+     * Deprecated: use setCommodity(Commodity commodity) instead
+     */
+    public void setCommodity(String commodity) {
+        throw new UnsupportedOperationException("Use setCommodity(Commodity commodity) instead");
+    }
+
+    public Commodity getCommodityEntity() {
         return commodity;
     }
 
-    public void setCommodity(String commodity) {
+    public void setCommodity(Commodity commodity) {
         this.commodity = commodity;
     }
 

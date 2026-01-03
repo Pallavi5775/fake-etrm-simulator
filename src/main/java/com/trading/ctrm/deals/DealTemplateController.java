@@ -99,7 +99,7 @@ public class DealTemplateController {
         template.setUnit(request.getUnit());
         template.setCurrency(request.getCurrency());
         template.setMtmApprovalThreshold(request.getMtmApprovalThreshold());
-        // Note: pricingModel is NOT user-configurable - auto-determined by instrument type
+        template.setPricingModel(request.getPricingModel());
 
         DealTemplate saved = templateRepository.save(template);
         return DealTemplateDto.from(saved);

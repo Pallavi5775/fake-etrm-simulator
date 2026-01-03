@@ -18,6 +18,13 @@ public class LifecycleRuleBuilder {
         rule.setToStatus(req.getToStatus());
         rule.setDesk(req.getDesk());
 
+        // Ensure event is always set (for DB NOT NULL constraint)
+        if (req.getEventType() != null) {
+            rule.setEvent(req.getEventType().name());
+        } else {
+            rule.setEvent(null);
+        }
+
         // 🔁 Rule execution constraints
         rule.setMaxOccurrence(
             req.getMaxOccurrence() != 0 ? req.getMaxOccurrence() : 1

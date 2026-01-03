@@ -16,6 +16,7 @@ public class DealTemplateRequest {
     private String unit;
     private String currency;
     private BigDecimal mtmApprovalThreshold;
+    private String pricingModel;
 
     public String getTemplateName() {
         return templateName;
@@ -95,5 +96,13 @@ public class DealTemplateRequest {
 
     public void setMtmApprovalThreshold(BigDecimal mtmApprovalThreshold) {
         this.mtmApprovalThreshold = mtmApprovalThreshold;
+    }
+
+    public String getPricingModel() {
+        return pricingModel;
+    }
+
+    public void setPricingModel(String pricingModel) {
+        this.pricingModel = pricingModel;
     }
 }

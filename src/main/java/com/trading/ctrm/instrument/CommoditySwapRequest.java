@@ -1,9 +1,12 @@
 package com.trading.ctrm.instrument;
 
 public class CommoditySwapRequest {
+        public String getCurrency() {
+            return currency;
+        }
     
     private String instrumentCode;
-    private String commodity;
+    private Long commodityId;
     private String currency;
     private String unit;
 
@@ -15,16 +18,26 @@ public class CommoditySwapRequest {
         this.instrumentCode = instrumentCode;
     }
 
+    /**
+     * Deprecated: use getCommodityId instead
+     */
     public String getCommodity() {
-        return commodity;
+        return null;
     }
 
+    /**
+     * Deprecated: use setCommodityId instead
+     */
     public void setCommodity(String commodity) {
-        this.commodity = commodity;
+        // no-op
     }
 
-    public String getCurrency() {
-        return currency;
+    public Long getCommodityId() {
+        return commodityId;
+    }
+
+    public void setCommodityId(Long commodityId) {
+        this.commodityId = commodityId;
     }
 
     public void setCurrency(String currency) {

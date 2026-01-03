@@ -121,11 +121,24 @@ public class PositionService {
      * Get active trades for aggregation
      */
     private List<Trade> getActiveTrades(String portfolioFilter) {
+        java.util.List<com.trading.ctrm.trade.TradeStatus> eligibleStatuses = java.util.Arrays.asList(
+            com.trading.ctrm.trade.TradeStatus.CREATED,
+            com.trading.ctrm.trade.TradeStatus.VALIDATED,
+            com.trading.ctrm.trade.TradeStatus.PENDING_APPROVAL,
+            com.trading.ctrm.trade.TradeStatus.APPROVED,
+            com.trading.ctrm.trade.TradeStatus.BOOKED
+        );
+        java.util.List<Trade> trades = new java.util.ArrayList<>();
         if (portfolioFilter == null || portfolioFilter.equals("ALL")) {
-            return tradeRepository.findByStatus(com.trading.ctrm.trade.TradeStatus.BOOKED);
+            for (com.trading.ctrm.trade.TradeStatus status : eligibleStatuses) {
+                trades.addAll(tradeRepository.findByStatus(status));
+            }
         } else {
-            return tradeRepository.findByPortfolioAndStatus(portfolioFilter, com.trading.ctrm.trade.TradeStatus.BOOKED);
+            for (com.trading.ctrm.trade.TradeStatus status : eligibleStatuses) {
+                trades.addAll(tradeRepository.findByPortfolioAndStatus(portfolioFilter, status));
+            }
         }
+        return trades;
     }
 
     /**

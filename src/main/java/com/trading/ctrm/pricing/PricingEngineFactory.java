@@ -18,6 +18,9 @@ public class PricingEngineFactory {
     public PricingEngine getEngine(InstrumentType type) {
         return switch (type) {
             case POWER_FORWARD -> new PowerForwardPricingEngine(forwardCurveRepository);
+            case OPTION -> new Black76PricingEngine();
+            case RENEWABLE_PPA -> new RenewableForecastPricingEngine();
+            case GAS_FORWARD, COMMODITY_SWAP, FREIGHT -> new DcfPricingEngine();
             default -> throw new IllegalArgumentException("No pricing engine for: " + type);
         };
     }

@@ -102,12 +102,28 @@ public class TradeLifecycleEngine {
         // 2️⃣ Validate max occurrence
         validateOccurrence(trade, rule);
 
-        // 3️⃣ Pricing + MTM-based approval (ONLY when rule allows auto-approve)
+        // 3️⃣ Apply status transition based on rule
+        System.out.println("🔄 Applying lifecycle event: " + eventType);
+        System.out.println("   Current status: " + trade.getStatus());
+        System.out.println("   Rule to_status: " + rule.getToStatus());
+        System.out.println("   Rule auto_approve: " + rule.isAutoApprove());
+        
         if (rule.isAutoApprove()) {
-            evaluateMTMBasedApproval(trade);
+            // For certain events like CANCELLED, SETTLED, directly apply to_status
+            if (eventType == TradeEventType.CANCELLED || eventType == TradeEventType.SETTLED) {
+                System.out.println("   ✅ Directly applying to_status: " + rule.getToStatus());
+                trade.setStatus(rule.getToStatus());
+            } else {
+                // For other events, use MTM-based approval logic
+                System.out.println("   📊 Using MTM-based approval");
+                evaluateMTMBasedApproval(trade);
+            }
         } else {
+            System.out.println("   ⏸️ Setting to PENDING_APPROVAL (no auto-approve)");
             trade.setStatus(TradeStatus.PENDING_APPROVAL);
         }
+        
+        System.out.println("   Final status: " + trade.getStatus());
 
         // 4️⃣ Persist trade state
         Trade savedTrade = tradeRepository.save(trade);

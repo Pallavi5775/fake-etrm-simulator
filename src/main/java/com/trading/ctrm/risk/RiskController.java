@@ -2,6 +2,7 @@ package com.trading.ctrm.risk;
 
 import com.trading.ctrm.trade.TradeVersion;
 import com.trading.ctrm.trade.TradeVersioningService;
+import com.trading.ctrm.common.PortfolioRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
@@ -26,16 +27,19 @@ public class RiskController {
     private final RiskLimitService riskLimitService;
     private final VarService varService;
     private final TradeVersioningService versioningService;
+    private final PortfolioRepository portfolioRepository;
 
     public RiskController(
             PositionService positionService,
             RiskLimitService riskLimitService,
             VarService varService,
-            TradeVersioningService versioningService) {
+            TradeVersioningService versioningService,
+            PortfolioRepository portfolioRepository) {
         this.positionService = positionService;
         this.riskLimitService = riskLimitService;
         this.varService = varService;
         this.versioningService = versioningService;
+        this.portfolioRepository = portfolioRepository;
     }
 
     // ============================================================================
@@ -46,7 +50,13 @@ public class RiskController {
     public ResponseEntity<Map<String, Object>> calculatePositions(@RequestBody PositionRequest request) {
         log.info("Calculating positions for date: {}", request.getPositionDate());
 
-        positionService.calculatePositions(request.getPositionDate(), request.getPortfolioFilter());
+        String portfolioName = null;
+        if (request.getPortfolioId() != null) {
+            portfolioName = portfolioRepository.findById(request.getPortfolioId())
+                .map(p -> p.getName())
+                .orElse(null);
+        }
+        positionService.calculatePositions(request.getPositionDate(), portfolioName);
 
         List<Position> positions = positionService.getPositions(request.getPositionDate());
 
@@ -64,21 +74,19 @@ public class RiskController {
         return ResponseEntity.ok(positionService.getPositions(positionDate));
     }
 
-    @GetMapping("/positions/{date}/portfolio/{portfolio}")
+    @GetMapping("/positions/{date}/portfolio/{portfolioId}")
     public ResponseEntity<Map<String, Object>> getPortfolioPositions(
             @PathVariable String date,
-            @PathVariable String portfolio) {
+            @PathVariable Long portfolioId) {
         LocalDate positionDate = LocalDate.parse(date);
-        
-        List<Position> positions = positionService.getPortfolioPositions(portfolio, positionDate);
-        BigDecimal netPosition = positionService.getPortfolioNetPosition(portfolio, positionDate);
-        BigDecimal mtm = positionService.getPortfolioMtm(portfolio, positionDate);
+        String portfolioName = portfolioRepository.findById(portfolioId)
+            .map(p -> p.getName())
+            .orElse(null);
+        List<Position> positions = positionService.getPortfolioPositions(portfolioName, positionDate);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("portfolio", portfolio);
         response.put("positionDate", positionDate);
-        response.put("netPosition", netPosition);
-        response.put("totalMtm", mtm);
+        response.put("positionCount", positions.size());
         response.put("positions", positions);
 
         return ResponseEntity.ok(response);
@@ -211,13 +219,13 @@ public class RiskController {
 
     public static class PositionRequest {
         private LocalDate positionDate;
-        private String portfolioFilter;
+        private Long portfolioId;
 
         public LocalDate getPositionDate() { return positionDate; }
         public void setPositionDate(LocalDate positionDate) { this.positionDate = positionDate; }
 
-        public String getPortfolioFilter() { return portfolioFilter; }
-        public void setPortfolioFilter(String portfolioFilter) { this.portfolioFilter = portfolioFilter; }
+        public Long getPortfolioId() { return portfolioId; }
+        public void setPortfolioId(Long portfolioId) { this.portfolioId = portfolioId; }
     }
 
     public static class LimitCheckRequest {

@@ -66,6 +66,16 @@ public class Trade {
     @Column(name = "trade_date")
     private LocalDate tradeDate;
 
+    @Column(name = "is_multi_leg")
+    private Boolean isMultiLeg = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "strategy_type")
+    private StrategyType strategyType;
+
+    @Transient
+    private java.util.List<TradeLeg> legs;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -232,5 +242,29 @@ public class Trade {
 
     public void setTradeDate(LocalDate tradeDate) {
         this.tradeDate = tradeDate;
+    }
+
+    public Boolean getIsMultiLeg() {
+        return isMultiLeg;
+    }
+
+    public void setIsMultiLeg(Boolean isMultiLeg) {
+        this.isMultiLeg = isMultiLeg;
+    }
+
+    public StrategyType getStrategyType() {
+        return strategyType;
+    }
+
+    public void setStrategyType(StrategyType strategyType) {
+        this.strategyType = strategyType;
+    }
+
+    public java.util.List<TradeLeg> getLegs() {
+        return legs;
+    }
+
+    public void setLegs(java.util.List<TradeLeg> legs) {
+        this.legs = legs;
     }
 }

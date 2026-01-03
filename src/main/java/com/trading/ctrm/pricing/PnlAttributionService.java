@@ -46,17 +46,19 @@ public class PnlAttributionService {
 
         LocalDate previousDate = pnlDate.minusDays(1);
 
-        // Get all active trades (APPROVED or BOOKED status)
-        List<Trade> approvedTrades = tradeRepository.findByStatus(com.trading.ctrm.trade.TradeStatus.APPROVED);
-        List<Trade> bookedTrades = tradeRepository.findByStatus(com.trading.ctrm.trade.TradeStatus.BOOKED);
-        
-        log.info("Found {} approved trades and {} booked trades", approvedTrades.size(), bookedTrades.size());
-        
-        // Combine both lists
-        List<Trade> trades = new java.util.ArrayList<>(approvedTrades);
-        trades.addAll(bookedTrades);
-        
-        log.info("Total trades to calculate P&L for: {}", trades.size());
+        // Get all trades with statuses eligible for P&L calculation (including pre-approval)
+        List<com.trading.ctrm.trade.TradeStatus> eligibleStatuses = java.util.Arrays.asList(
+            com.trading.ctrm.trade.TradeStatus.CREATED,
+            com.trading.ctrm.trade.TradeStatus.VALIDATED,
+            com.trading.ctrm.trade.TradeStatus.PENDING_APPROVAL,
+            com.trading.ctrm.trade.TradeStatus.APPROVED,
+            com.trading.ctrm.trade.TradeStatus.BOOKED
+        );
+        List<Trade> trades = new java.util.ArrayList<>();
+        for (com.trading.ctrm.trade.TradeStatus status : eligibleStatuses) {
+            trades.addAll(tradeRepository.findByStatus(status));
+        }
+        log.info("Total trades to calculate P&L for (statuses: {}): {}", eligibleStatuses, trades.size());
 
         for (Trade trade : trades) {
             try {

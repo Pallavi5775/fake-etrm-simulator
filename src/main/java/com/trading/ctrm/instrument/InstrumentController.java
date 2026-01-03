@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.trading.ctrm.trade.InstrumentRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -20,9 +21,12 @@ import java.util.Map;
 public class InstrumentController {
 
     private final InstrumentRepository instrumentRepository;
+    private final InstrumentEntityHelper instrumentEntityHelper;
 
-    public InstrumentController(InstrumentRepository instrumentRepository) {
+    @Autowired
+    public InstrumentController(InstrumentRepository instrumentRepository, InstrumentEntityHelper instrumentEntityHelper) {
         this.instrumentRepository = instrumentRepository;
+        this.instrumentEntityHelper = instrumentEntityHelper;
     }
 
     /**
@@ -131,7 +135,7 @@ public class InstrumentController {
 
         CommoditySwapInstrument instrument = new CommoditySwapInstrument();
         instrument.setInstrumentCode(request.getInstrumentCode());
-        instrument.setCommodity(request.getCommodity());
+        instrument.setCommodity(instrumentEntityHelper.resolveCommodity(request.getCommodityId()));
         instrument.setCurrency(request.getCurrency() != null ? request.getCurrency() : "EUR");
         instrument.setUnit(request.getUnit());
 
@@ -152,7 +156,7 @@ public class InstrumentController {
 
         CommodityOptionInstrument instrument = new CommodityOptionInstrument();
         instrument.setInstrumentCode(request.getInstrumentCode());
-        instrument.setCommodity(request.getCommodity());
+        instrument.setCommodity(instrumentEntityHelper.resolveCommodity(request.getCommodityId()));
         instrument.setCurrency(request.getCurrency() != null ? request.getCurrency() : "EUR");
         instrument.setUnit(request.getUnit());
         instrument.setStrikePrice(request.getStrikePrice());

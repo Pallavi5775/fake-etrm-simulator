@@ -1,3 +1,4 @@
+// ...existing code...
 package com.trading.ctrm.common;
 
 import org.springframework.web.bind.annotation.*;
@@ -7,18 +8,66 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.trading.ctrm.instrument.CommodityRepository;
+import com.trading.ctrm.instrument.Commodity;
+
 @RestController
 @RequestMapping("/api")
 public class ReferenceDataController {
 
     private final CounterpartyRepository counterpartyRepository;
     private final PortfolioRepository portfolioRepository;
+    private final CommodityRepository commodityRepository;
 
     public ReferenceDataController(
             CounterpartyRepository counterpartyRepository,
-            PortfolioRepository portfolioRepository) {
+            PortfolioRepository portfolioRepository,
+            CommodityRepository commodityRepository) {
         this.counterpartyRepository = counterpartyRepository;
         this.portfolioRepository = portfolioRepository;
+        this.commodityRepository = commodityRepository;
+    }
+
+    /**
+     * GET /api/reference-data/risk-limit-metadata
+     * Returns valid values for limitType, limitScope, breachAction, and limitUnit
+     */
+    @GetMapping("/reference-data/risk-limit-metadata")
+    public java.util.Map<String, Object> getRiskLimitMetadata() {
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("limitType", java.util.Arrays.asList(
+            "POSITION", "VAR", "DELTA", "CONCENTRATION", "CREDIT"
+        ));
+        result.put("limitScope", java.util.Arrays.asList(
+            "PORTFOLIO", "COMMODITY", "COUNTERPARTY"
+        ));
+        result.put("breachAction", java.util.Arrays.asList(
+            "ALERT", "BLOCK", "ESCALATE"
+        ));
+        result.put("limitUnit", java.util.Arrays.asList(
+            "MWh", "USD", "PERCENT", "GWh", "MMBtu", "Therm", "BBL", "MT", "tCO2e"
+        ));
+        java.util.Map<String, java.util.List<String>> scopeValue = new java.util.HashMap<>();
+        // Fetch real portfolio names
+        java.util.List<String> portfolioNames = portfolioRepository.findAll().stream()
+            .map(p -> p.getName())
+            .toList();
+        scopeValue.put("PORTFOLIO", portfolioNames);
+        // Fetch real commodity names from the database
+        java.util.List<String> commodityNames = commodityRepository.findAll().stream()
+            .map(Commodity::getName)
+            .toList();
+        scopeValue.put("COMMODITY", commodityNames);
+        // Fetch real counterparty names
+        java.util.List<String> counterpartyNames = counterpartyRepository.findAll().stream()
+            .map(c -> c.getName())
+            .toList();
+        scopeValue.put("COUNTERPARTY", counterpartyNames);
+        result.put("scopeValue", scopeValue);
+        result.put("breachStatus", java.util.Arrays.asList(
+            "ACTIVE", "RESOLVED", "ACKNOWLEDGED"
+        ));
+        return result;
     }
 
     // GET /api/counterparties

@@ -3,33 +3,52 @@ package com.trading.ctrm.rules;
 import java.time.LocalDate;
 import com.trading.ctrm.trade.Trade;
 
+
+import java.math.BigDecimal;
+import java.util.List;
+
 public class MarketContext {
 
-    private final String marketDataSet;   // EOD / INTRADAY
-    private final LocalDate pricingDate;
-    private final String curveSet;
-    private final String fxScenario;
-    private final String volatilitySurface;
+        private final String marketDataSet;   // EOD / INTRADAY
+        private final LocalDate pricingDate;
+        private final String curveSet;
+        private final String fxScenario;
+        private final String volatilitySurface;
+        // Added for renewable forecast pricing
+        private final List<BigDecimal> forecastPrices;
 
-    public MarketContext(
-            String marketDataSet,
-            LocalDate pricingDate,
-            String curveSet,
-            String fxScenario,
-            String volatilitySurface
-    ) {
-        this.marketDataSet = marketDataSet;
-        this.pricingDate = pricingDate;
-        this.curveSet = curveSet;
-        this.fxScenario = fxScenario;
-        this.volatilitySurface = volatilitySurface;
-    }
+        public MarketContext(
+                        String marketDataSet,
+                        LocalDate pricingDate,
+                        String curveSet,
+                        String fxScenario,
+                        String volatilitySurface
+        ) {
+                this(marketDataSet, pricingDate, curveSet, fxScenario, volatilitySurface, null);
+        }
 
-    public String marketDataSet() { return marketDataSet; }
-    public LocalDate pricingDate() { return pricingDate; }
-    public String curveSet() { return curveSet; }
-    public String fxScenario() { return fxScenario; }
-    public String volatilitySurface() { return volatilitySurface; }
+        public MarketContext(
+                        String marketDataSet,
+                        LocalDate pricingDate,
+                        String curveSet,
+                        String fxScenario,
+                        String volatilitySurface,
+                        List<BigDecimal> forecastPrices
+        ) {
+                this.marketDataSet = marketDataSet;
+                this.pricingDate = pricingDate;
+                this.curveSet = curveSet;
+                this.fxScenario = fxScenario;
+                this.volatilitySurface = volatilitySurface;
+                this.forecastPrices = forecastPrices;
+        }
+
+        public String marketDataSet() { return marketDataSet; }
+        public LocalDate pricingDate() { return pricingDate; }
+        public String curveSet() { return curveSet; }
+        public String fxScenario() { return fxScenario; }
+        public String volatilitySurface() { return volatilitySurface; }
+        public List<BigDecimal> forecastPrices() { return forecastPrices; }
 
     public static MarketContext of(
             String marketDataSet,
@@ -44,6 +63,24 @@ public class MarketContext {
                 curveSet,
                 fxScenario,
                 volatilitySurface
+        );
+    }
+
+    public static MarketContext of(
+            String marketDataSet,
+            LocalDate pricingDate,
+            String curveSet,
+            String fxScenario,
+            String volatilitySurface,
+            List<BigDecimal> forecastPrices
+    ) {
+        return new MarketContext(
+                marketDataSet,
+                pricingDate,
+                curveSet,
+                fxScenario,
+                volatilitySurface,
+                forecastPrices
         );
     }
 

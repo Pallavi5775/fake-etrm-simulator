@@ -21,6 +21,9 @@ import com.trading.ctrm.rules.AuditContext;
 import com.trading.ctrm.trade.EnumType.BuySell;
 import com.trading.ctrm.trade.dto.TradeEventRequest;
 import com.trading.ctrm.trade.dto.ValuationConfigRequest;
+import com.trading.ctrm.trade.dto.MultiLegTradeRequest;
+import com.trading.ctrm.trade.dto.TradeLegRequest;
+import com.trading.ctrm.trade.dto.TradeEventDto;
 
 import jakarta.transaction.Transactional;
 
@@ -30,6 +33,8 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
 
 import org.springframework.lang.NonNull;
 
@@ -43,6 +48,9 @@ public class TradeService {
     private final DealTemplateRepository templateRepo;
     private final ApprovalRuleEngine approvalRuleEngine;
     private final ApprovalExecutionService approvalExecutionService;
+    private final TradeLegRepository tradeLegRepository;
+    private final ForwardCurveRepository forwardCurveRepository;
+    private final TradeEventRepository tradeEventRepository;
 
     public TradeService(
             TradeRepository tradeRepository,
@@ -51,7 +59,10 @@ public class TradeService {
             TradeLifecycleEngine tradeLifecycleEngine,
             DealTemplateRepository templateRepo,
             ApprovalRuleEngine approvalRuleEngine,
-            ApprovalExecutionService approvalExecutionService
+            ApprovalExecutionService approvalExecutionService,
+            TradeLegRepository tradeLegRepository,
+            ForwardCurveRepository forwardCurveRepository,
+            TradeEventRepository tradeEventRepository
     ) {
         this.tradeRepository = tradeRepository;
         this.instrumentRepository = instrumentRepository;
@@ -60,6 +71,9 @@ public class TradeService {
         this.templateRepo = templateRepo;
         this.approvalRuleEngine = approvalRuleEngine;
         this.approvalExecutionService = approvalExecutionService;
+        this.tradeLegRepository = tradeLegRepository;
+        this.forwardCurveRepository = forwardCurveRepository;
+        this.tradeEventRepository = tradeEventRepository;
     }
 
     public Trade bookTrade(TradeEventRequest req) {
@@ -300,11 +314,179 @@ public Trade bookFromTemplate(
     }
 
     /**
+     * Book a multi-leg trade (spread, butterfly, etc.)
+     */
+    @Transactional
+    public Trade bookMultiLegTrade(MultiLegTradeRequest request) {
+        if (request.getLegs() == null || request.getLegs().size() < 2) {
+            throw new IllegalArgumentException("Multi-leg trade must have at least 2 legs");
+        }
+
+        // Create parent trade
+        Trade trade = new Trade();
+        
+        // Generate trade ID
+        String tradeIdPrefix = "TRD-" + LocalDateTime.now().format(
+            java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        long tradeCount = tradeRepository.count() + 1;
+        trade.setTradeId(tradeIdPrefix + "-" + String.format("%04d", tradeCount));
+        
+        // Set multi-leg fields
+        trade.setIsMultiLeg(true);
+        trade.setStrategyType(request.getStrategyType() != null ? 
+            request.getStrategyType() : StrategyType.CUSTOM);
+        
+        // Set first leg's instrument as primary (for display)
+        TradeLegRequest firstLeg = request.getLegs().get(0);
+        Instrument firstInstrument = resolveInstrument(firstLeg);
+        trade.setInstrument(firstInstrument);
+        
+        // Calculate net quantity and average price for parent
+        BigDecimal netQuantity = BigDecimal.ZERO;
+        BigDecimal weightedPrice = BigDecimal.ZERO;
+        for (TradeLegRequest legReq : request.getLegs()) {
+            BigDecimal legQty = legReq.getQuantity();
+            if (legReq.getBuySell() == BuySell.SELL) {
+                legQty = legQty.negate();
+            }
+            netQuantity = netQuantity.add(legQty);
+            weightedPrice = weightedPrice.add(legReq.getPrice().multiply(legReq.getQuantity()));
+        }
+        
+        BigDecimal totalQuantity = request.getLegs().stream()
+            .map(TradeLegRequest::getQuantity)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        trade.setQuantity(totalQuantity);
+        trade.setPrice(weightedPrice.divide(totalQuantity, 4, java.math.RoundingMode.HALF_UP));
+        trade.setBuySell(netQuantity.compareTo(BigDecimal.ZERO) >= 0 ? BuySell.BUY : BuySell.SELL);
+        
+        // Set common fields
+        trade.setPortfolio(request.getPortfolio());
+        trade.setCounterparty(request.getCounterparty());
+        trade.setCreatedBy(request.getCreatedByUser());
+        trade.setTradeDate(request.getTradeDate() != null ? request.getTradeDate() : LocalDate.now());
+        
+        // Set temporary status (will be updated by approval workflow)
+        trade.setStatus(TradeStatus.PENDING_APPROVAL);
+        
+        // Save parent trade to generate ID
+        trade = tradeRepository.save(trade);
+        
+        // Create and save legs
+        List<TradeLeg> legs = new ArrayList<>();
+        int legNumber = 1;
+        for (TradeLegRequest legReq : request.getLegs()) {
+            TradeLeg leg = new TradeLeg();
+            leg.setTradeId(trade.getTradeId());
+            leg.setLegNumber(legNumber++);
+            leg.setInstrument(resolveInstrument(legReq));
+            leg.setBuySell(legReq.getBuySell());
+            leg.setQuantity(legReq.getQuantity());
+            leg.setPrice(legReq.getPrice());
+            leg.setRatio(legReq.getRatio() != null ? legReq.getRatio() : BigDecimal.ONE);
+            leg.setDeliveryDate(legReq.getDeliveryDate());
+            
+            legs.add(tradeLegRepository.save(leg));
+        }
+        
+        trade.setLegs(legs);
+        
+        // Route through approval workflow
+        TradeContext ctx = TradeContext.fromTrade(trade);
+        
+        Optional<ApprovalRule> matchedRule = approvalRuleEngine.evaluate(ctx, "TRADE_BOOK");
+        
+        if (matchedRule.isPresent()) {
+            ApprovalRule rule = matchedRule.get();
+            
+            approvalExecutionService.createPendingApproval(ctx, rule, "TRADE_BOOK");
+            
+            trade.setStatus(TradeStatus.PENDING_APPROVAL);
+            trade.setMatchedRuleId(rule.getRuleId());
+            trade.setCurrentApprovalLevel(1);
+            trade.setPendingApprovalRole(
+                rule.getRouting().stream()
+                    .filter(r -> r.getApprovalLevel() == 1)
+                    .findFirst()
+                    .map(ApprovalRouting::getApprovalRole)
+                    .orElse(null)
+            );
+        } else {
+            // No matching rule - requires manual approval
+            trade.setStatus(TradeStatus.PENDING_APPROVAL);
+            trade.setPendingApprovalRole("SENIOR_TRADER");
+        }
+        
+        trade = tradeRepository.save(trade);
+        
+        // Update positions for each leg
+        for (TradeLeg leg : legs) {
+            portfolioPositionService.updatePositionForLeg(trade, leg);
+        }
+        
+        return trade;
+    }
+    
+    /**
+     * Resolve instrument from leg request
+     */
+    private Instrument resolveInstrument(TradeLegRequest legReq) {
+        if (legReq.getInstrumentId() != null) {
+            return instrumentRepository.findById(legReq.getInstrumentId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                    "Instrument not found: " + legReq.getInstrumentId()));
+        } else if (legReq.getInstrumentCode() != null) {
+            return instrumentRepository.findByInstrumentCode(legReq.getInstrumentCode());
+        } else {
+            throw new IllegalArgumentException("Either instrumentId or instrumentCode must be provided");
+        }
+    }
+    
+    /**
+     * Get legs for a multi-leg trade
+     */
+    public List<TradeLeg> getTradeLegs(String tradeId) {
+        return tradeLegRepository.findByTradeIdOrderByLegNumber(tradeId);
+    }
+    
+    /**
+     * Find latest forward curve for an instrument and delivery date
+     */
+    public ForwardCurve findLatestForwardCurve(Instrument instrument, LocalDate deliveryDate) {
+        return forwardCurveRepository
+            .findLatestByInstrumentAndDeliveryDate(instrument, deliveryDate)
+            .orElseThrow(() -> new RuntimeException(
+                "Forward curve not found for " + instrument.getInstrumentCode() + 
+                " on " + deliveryDate));
+    }
+
+    /**
      * Save or update a trade
      */
     @Transactional
     public Trade saveTrade(Trade trade) {
         return tradeRepository.save(trade);
+    }
+
+    public List<TradeEventDto> getTradeEvents(String tradeId) {
+        Trade trade = tradeRepository.findByTradeId(tradeId)
+            .orElseThrow(() -> new IllegalArgumentException("Trade not found: " + tradeId));
+        List<TradeEvent> events = new ArrayList<>();
+        if (trade.getId() != null) {
+            events = tradeEventRepository.findByTradeIdOrderByCreatedAt(trade.getId());
+        }
+        List<TradeEventDto> dtos = new ArrayList<>();
+        for (TradeEvent event : events) {
+            dtos.add(new TradeEventDto(
+                event.getId(),
+                event.getEventType(),
+                event.getTriggeredBy(),
+                event.getSource(),
+                event.getCreatedAt()
+            ));
+        }
+        return dtos;
     }
 
     

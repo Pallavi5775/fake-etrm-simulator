@@ -2,10 +2,12 @@ package com.trading.ctrm.trade.dto;
 
 import com.trading.ctrm.trade.EnumType.BuySell;
 import com.trading.ctrm.trade.TradeStatus;
+import com.trading.ctrm.trade.StrategyType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class TradeResponseDto {
 
@@ -50,6 +52,11 @@ public class TradeResponseDto {
     private BigDecimal vega;
     private String commodity;
     private String instrumentType;
+    
+    /** Multi-leg trade fields */
+    private Boolean isMultiLeg;
+    private StrategyType strategyType;
+    private List<TradeLegDto> legs;
 
     // ------------------------
     // Constructors
@@ -257,5 +264,29 @@ public class TradeResponseDto {
 
     public void setInstrumentType(String instrumentType) {
         this.instrumentType = instrumentType;
+    }
+
+    public Boolean getIsMultiLeg() {
+        return isMultiLeg;
+    }
+
+    public void setIsMultiLeg(Boolean isMultiLeg) {
+        this.isMultiLeg = isMultiLeg;
+    }
+
+    public StrategyType getStrategyType() {
+        return strategyType;
+    }
+
+    public void setStrategyType(StrategyType strategyType) {
+        this.strategyType = strategyType;
+    }
+
+    public List<TradeLegDto> getLegs() {
+        return legs;
+    }
+
+    public void setLegs(List<TradeLegDto> legs) {
+        this.legs = legs;
     }
 }

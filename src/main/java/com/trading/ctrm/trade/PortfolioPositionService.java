@@ -43,4 +43,32 @@ public class PortfolioPositionService {
     repo.save(position);
 }
 
+    /**
+     * Update position for a specific leg of a multi-leg trade
+     */
+    public void updatePositionForLeg(Trade trade, TradeLeg leg) {
+        String portfolio = trade.getPortfolio();
+        Instrument instrument = leg.getInstrument();
+
+        PortfolioPosition position = repo
+            .findByPortfolioAndInstrument(portfolio, instrument)
+            .orElseGet(() ->
+                new PortfolioPosition(
+                    portfolio,
+                    instrument,
+                    BigDecimal.ZERO
+                )
+            );
+
+        BigDecimal signedQty = leg.getBuySell() == BuySell.BUY
+                ? leg.getQuantity()
+                : leg.getQuantity().negate();
+
+        position.setNetQuantity(
+            position.getNetQuantity().add(signedQty)
+        );
+        
+        repo.save(position);
+    }
+
 }
