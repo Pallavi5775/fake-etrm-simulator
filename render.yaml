@@ -1,0 +1,23 @@
+# Render deployment configuration for Java Spring Boot + PostgreSQL
+# Place this file at the root of your repository as render.yaml
+
+services:
+  - type: web
+    name: ctrm-simulator
+    runtime: java
+    plan: free
+    buildCommand: ./mvnw clean package
+    startCommand: java -jar target/*.jar
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://pg-39985733-pallavidapriya75-97f0.h.aivencloud.com:12783/defaultdb?sslmode=require
+      - key: SPRING_DATASOURCE_USERNAME
+        value: avnadmin
+      - key: SPRING_DATASOURCE_PASSWORD
+        value: AVNS_SPx5mGZsHfWLTBIzEGM
+    autoDeploy: true
+
+databases:
+  - name: ctrm-db
+    plan: free
+    postgresMajorVersion: 15
