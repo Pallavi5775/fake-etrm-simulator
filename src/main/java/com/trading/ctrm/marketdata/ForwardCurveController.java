@@ -6,10 +6,13 @@ import com.trading.ctrm.trade.ForwardCurve;
 import com.trading.ctrm.trade.ForwardCurveRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 @RestController
 @RequestMapping("/api/forward-curves")
@@ -103,6 +106,79 @@ public class ForwardCurveController {
 
         BulkUploadResponse response = new BulkUploadResponse(
                 requests.size(), created, updated, errors);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * CSV upload forward curve points
+     * POST /api/forward-curves/upload-csv
+     * CSV Format: instrumentCode,deliveryDate,price
+     */
+    @PostMapping("/upload-csv")
+    public ResponseEntity<BulkUploadResponse> uploadCsv(@RequestParam("file") MultipartFile file) {
+        int created = 0;
+        int updated = 0;
+        int errors = 0;
+        int total = 0;
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String line;
+            boolean isHeader = true;
+
+            while ((line = reader.readLine()) != null) {
+                if (isHeader) {
+                    isHeader = false; // Skip header
+                    continue;
+                }
+
+                total++;
+                String[] parts = line.split(",");
+                if (parts.length < 3) {
+                    errors++;
+                    continue;
+                }
+
+                try {
+                    String instrumentCode = parts[0].trim();
+                    LocalDate deliveryDate = LocalDate.parse(parts[1].trim());
+                    double price = Double.parseDouble(parts[2].trim());
+
+                    Instrument instrument = instrumentRepository
+                            .findOptionalByInstrumentCode(instrumentCode)
+                            .orElseThrow(() -> new RuntimeException(
+                                    "Instrument not found: " + instrumentCode));
+
+                    boolean exists = curveRepository
+                            .findByInstrumentAndDeliveryDate(instrument, deliveryDate)
+                            .isPresent();
+
+                    ForwardCurve curve = curveRepository
+                            .findByInstrumentAndDeliveryDate(instrument, deliveryDate)
+                            .orElse(new ForwardCurve());
+
+                    curve.setInstrument(instrument);
+                    curve.setDeliveryDate(deliveryDate);
+                    curve.setPrice(price);
+                    curve.setCurveDate(LocalDate.now());
+
+                    curveRepository.save(curve);
+
+                    if (exists) {
+                        updated++;
+                    } else {
+                        created++;
+                    }
+
+                } catch (Exception e) {
+                    errors++;
+                }
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        BulkUploadResponse response = new BulkUploadResponse(total, created, updated, errors);
         return ResponseEntity.ok(response);
     }
 

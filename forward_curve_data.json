@@ -1,0 +1,21 @@
+[
+  {"instrumentCode": "PWR-JAN25-DA", "deliveryDate": "2025-01-25", "price": 68.25},
+  {"instrumentCode": "PWR-FEB25-DA", "deliveryDate": "2025-02-25", "price": 68.54},
+  {"instrumentCode": "PWR-Q1-25", "deliveryDate": "2025-01-15", "price": 67.98},
+  {"instrumentCode": "PWR-Q1-25", "deliveryDate": "2025-02-15", "price": 67.98},
+  {"instrumentCode": "PWR-Q1-25", "deliveryDate": "2025-03-15", "price": 67.98},
+  {"instrumentCode": "PWR-CALL-JAN25-60", "deliveryDate": "2025-01-25", "price": 8.54},
+  {"instrumentCode": "PWR-PUT-JAN25-50", "deliveryDate": "2025-01-25", "price": 0.00},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-01-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-02-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-03-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-04-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-05-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-06-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-07-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-08-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-09-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-10-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-11-01", "price": 63.55},
+  {"instrumentCode": "PWR-BASELOAD-2025", "deliveryDate": "2025-12-01", "price": 63.55}
+]
