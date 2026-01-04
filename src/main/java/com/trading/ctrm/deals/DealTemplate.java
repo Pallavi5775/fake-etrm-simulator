@@ -1,7 +1,11 @@
 package com.trading.ctrm.deals;
 
+import com.trading.ctrm.instrument.Commodity;
 import com.trading.ctrm.instrument.Instrument;
 import jakarta.persistence.*;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
 
@@ -24,7 +28,11 @@ public class DealTemplate {
     @Column(nullable = false, unique = true)
     private String templateName;          // Renewable Power Forward
 
-    private String commodity;             // POWER, GAS
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "commodity_id")
+    @JsonIgnore
+    private Commodity commodity;          // POWER, GAS
+
     private String instrumentType;         // FORWARD, PPA, OPTION
 
     /* =========================
@@ -78,11 +86,24 @@ public class DealTemplate {
         this.templateName = templateName;
     }
 
+    @JsonProperty("commodity_name")
     public String getCommodity() {
+        return commodity != null ? commodity.getName() : null;
+    }
+
+    @JsonIgnore
+    public Commodity getCommodityEntity() {
         return commodity;
     }
 
+    /**
+     * Deprecated: use setCommodity(Commodity commodity) instead
+     */
     public void setCommodity(String commodity) {
+        throw new UnsupportedOperationException("Use setCommodity(Commodity commodity) instead");
+    }
+
+    public void setCommodity(Commodity commodity) {
         this.commodity = commodity;
     }
 

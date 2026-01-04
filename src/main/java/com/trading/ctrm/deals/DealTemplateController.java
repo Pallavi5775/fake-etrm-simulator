@@ -1,5 +1,7 @@
 package com.trading.ctrm.deals;
 
+import com.trading.ctrm.instrument.Commodity;
+import com.trading.ctrm.instrument.CommodityRepository;
 import com.trading.ctrm.instrument.Instrument;
 import com.trading.ctrm.trade.InstrumentRepository;
 import org.springframework.http.HttpStatus;
@@ -15,12 +17,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 @RestController
 @RequestMapping("/api/templates")
 public class DealTemplateController {
 
     private final DealTemplateRepository templateRepository;
     private final InstrumentRepository instrumentRepository;
+    
+    @Autowired
+    private CommodityRepository commodityRepository;
 
     public DealTemplateController(
             DealTemplateRepository templateRepository,
@@ -94,7 +101,13 @@ public class DealTemplateController {
         template.setAutoApprovalAllowed(request.isAutoApprovalAllowed());
         
         // Set optional overrides - if null, will inherit from instrument
-        template.setCommodity(request.getCommodity());
+        if (request.getCommodity() != null && !request.getCommodity().isBlank()) {
+            Commodity commodityEntity = commodityRepository.findByName(request.getCommodity());
+            if (commodityEntity == null) {
+                throw new IllegalArgumentException("Commodity not found with name: " + request.getCommodity());
+            }
+            template.setCommodity(commodityEntity);
+        }
         template.setInstrumentType(request.getInstrumentType());
         template.setUnit(request.getUnit());
         template.setCurrency(request.getCurrency());
@@ -237,7 +250,12 @@ public class DealTemplateController {
                     
                     String commodity = row.get("commodity");
                     if (commodity != null && !commodity.isEmpty()) {
-                        template.setCommodity(commodity);
+                        Commodity commodityEntity = commodityRepository.findByName(commodity);
+                        if (commodityEntity == null) {
+                            errors.add("Line " + lineNumber + ": Commodity not found: " + commodity);
+                            continue;
+                        }
+                        template.setCommodity(commodityEntity);
                     }
                     
                     String unit = row.get("unit");

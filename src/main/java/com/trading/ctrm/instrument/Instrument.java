@@ -2,6 +2,9 @@ package com.trading.ctrm.instrument;
 
 import jakarta.persistence.*;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Entity
 @Table(name = "instruments")
 @Inheritance(strategy = InheritanceType.JOINED)
@@ -13,9 +16,12 @@ public abstract class Instrument {
 
     @Column(unique = true, nullable = false)
     private String instrumentCode;   // POWER_JAN25
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "commodity_id")
+    @JsonIgnore
     private Commodity commodity;
+    
     private String currency;          // EUR
     private String unit;              // MWh
 
@@ -36,6 +42,7 @@ public abstract class Instrument {
         this.instrumentCode = instrumentCode;
     }
 
+    @JsonProperty("commodity_name")
     public String getCommodity() {
         return commodity != null ? commodity.getName() : null;
     }
@@ -47,6 +54,7 @@ public abstract class Instrument {
         throw new UnsupportedOperationException("Use setCommodity(Commodity commodity) instead");
     }
 
+    @JsonIgnore
     public Commodity getCommodityEntity() {
         return commodity;
     }

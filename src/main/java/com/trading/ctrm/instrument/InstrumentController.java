@@ -22,6 +22,9 @@ public class InstrumentController {
 
     private final InstrumentRepository instrumentRepository;
     private final InstrumentEntityHelper instrumentEntityHelper;
+    
+    @Autowired
+    private CommodityRepository commodityRepository;
 
     @Autowired
     public InstrumentController(InstrumentRepository instrumentRepository, InstrumentEntityHelper instrumentEntityHelper) {
@@ -111,7 +114,15 @@ public class InstrumentController {
 
         RenewablePPAInstrument instrument = new RenewablePPAInstrument();
         instrument.setInstrumentCode(request.getInstrumentCode());
-        instrument.setCommodity(request.getCommodity() != null ? request.getCommodity() : "POWER");
+        
+        // Set commodity by looking up entity
+        String commodityName = request.getCommodity() != null ? request.getCommodity() : "POWER";
+        Commodity commodity = commodityRepository.findByName(commodityName);
+        if (commodity == null) {
+            throw new IllegalArgumentException("Commodity not found: " + commodityName);
+        }
+        instrument.setCommodity(commodity);
+        
         instrument.setCurrency(request.getCurrency() != null ? request.getCurrency() : "EUR");
         instrument.setUnit(request.getUnit() != null ? request.getUnit() : "MWh");
         instrument.setTechnology(request.getTechnology());
@@ -228,7 +239,16 @@ public class InstrumentController {
                         case "POWER_FORWARD":
                             PowerForwardInstrument powerForward = new PowerForwardInstrument();
                             powerForward.setInstrumentCode(instrumentCode);
-                            powerForward.setCommodity(row.getOrDefault("commodity", "POWER"));
+                            
+                            // Look up commodity by name
+                            String powerCommodityName = row.getOrDefault("commodity", "POWER");
+                            Commodity powerCommodity = commodityRepository.findByName(powerCommodityName);
+                            if (powerCommodity == null) {
+                                errors.add("Line " + lineNumber + ": Commodity not found: " + powerCommodityName);
+                                continue;
+                            }
+                            powerForward.setCommodity(powerCommodity);
+                            
                             powerForward.setCurrency(row.getOrDefault("currency", "EUR"));
                             powerForward.setUnit(row.getOrDefault("unit", "MWh"));
                             if (!row.get("startDate").isEmpty()) {
@@ -243,8 +263,17 @@ public class InstrumentController {
                         case "GAS_FORWARD":
                             GasForwardInstrument gasForward = new GasForwardInstrument();
                             gasForward.setInstrumentCode(instrumentCode);
-                            gasForward.setCommodity(row.getOrDefault("commodity", "NATURAL_GAS"));
-                            gasForward.setCurrency(row.getOrDefault("currency", "EUR"));
+                            
+                            // Look up commodity by name
+                            String gasCommodityName = row.getOrDefault("commodity", "GAS");
+                            Commodity gasCommodity = commodityRepository.findByName(gasCommodityName);
+                            if (gasCommodity == null) {
+                                errors.add("Line " + lineNumber + ": Commodity not found: " + gasCommodityName);
+                                continue;
+                            }
+                            gasForward.setCommodity(gasCommodity);
+                            
+                            gasForward.setCurrency(row.getOrDefault("currency", "USD"));
                             gasForward.setUnit(row.getOrDefault("unit", "MMBtu"));
                             if (!row.get("deliveryDate").isEmpty()) {
                                 gasForward.setDeliveryDate(LocalDate.parse(row.get("deliveryDate")));
@@ -255,7 +284,16 @@ public class InstrumentController {
                         case "COMMODITY_OPTION":
                             CommodityOptionInstrument option = new CommodityOptionInstrument();
                             option.setInstrumentCode(instrumentCode);
-                            option.setCommodity(row.getOrDefault("commodity", "POWER"));
+                            
+                            // Look up commodity by name
+                            String optionCommodityName = row.getOrDefault("commodity", "POWER");
+                            Commodity optionCommodity = commodityRepository.findByName(optionCommodityName);
+                            if (optionCommodity == null) {
+                                errors.add("Line " + lineNumber + ": Commodity not found: " + optionCommodityName);
+                                continue;
+                            }
+                            option.setCommodity(optionCommodity);
+                            
                             option.setCurrency(row.getOrDefault("currency", "EUR"));
                             option.setUnit(row.getOrDefault("unit", "MWh"));
                             if (!row.get("strikePrice").isEmpty()) {
