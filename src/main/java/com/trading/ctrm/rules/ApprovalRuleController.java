@@ -234,5 +234,50 @@ public class ApprovalRuleController {
         
         return response;
     }
+
+    // Metadata endpoints for condition dropdowns (Endur-style)
+    @GetMapping("/metadata/fields")
+    public List<String> getConditionFields() {
+        return List.of(
+            "trade.quantity",
+            "trade.price",
+            "trade.counterparty",
+            "trade.portfolio",
+            "trade.status",
+            "trade.currency",
+            "trade.instrumentType"
+        );
+    }
+
+    @GetMapping("/metadata/operators")
+    public List<String> getConditionOperators() {
+        return List.of(
+            ">",
+            "<",
+            "=",
+            "!=",
+            ">=",
+            "<="
+        );
+    }
+
+    @GetMapping("/metadata/values")
+    public List<String> getConditionValues(@RequestParam String field) {
+        switch (field) {
+            case "trade.counterparty":
+                return List.of("BP", "SHELL", "TOTAL", "CHEVRON", "EXXON");
+            case "trade.portfolio":
+                return List.of("PORT1", "PORT2", "PORT3", "PORT4");
+            case "trade.status":
+                return List.of("CREATED", "VALIDATED", "BOOKED", "APPROVED", "SETTLED");
+            case "trade.currency":
+                return List.of("USD", "EUR", "GBP", "JPY");
+            case "trade.instrumentType":
+                return List.of("GAS_FORWARD", "POWER_FORWARD", "COMMODITY_SWAP", "OPTION", "RENEWABLE_PPA");
+            default:
+                // For numeric fields like quantity, price
+                return List.of("0", "100", "1000", "10000", "100000");
+        }
+    }
 }
 
