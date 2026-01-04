@@ -14,19 +14,15 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                // Allow requests from React dev server (port 3000) and production build
-                // Use allowedOriginPatterns instead of allowedOrigins when credentials are enabled
+                // Allow requests from React dev server (port 3000), production build, and Render frontend
                 .allowedOriginPatterns(
                     "http://localhost:*",
-                    "http://127.0.0.1:*"
+                    "http://127.0.0.1:*",
+                    "https://etrm-simulator-ui.onrender.com"
                 )
-                // Allow all HTTP methods
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-                // Allow all headers
                 .allowedHeaders("*")
-                // Allow credentials (cookies, authorization headers)
                 .allowCredentials(true)
-                // Cache preflight response for 1 hour
                 .maxAge(3600);
     }
 }
