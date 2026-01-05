@@ -89,7 +89,7 @@ public class ScenarioService {
 
         // Get base case valuation
         ValuationResult baseValuation = valuationResultRepository
-            .findByTradeIdAndPricingDate(trade.getId(), scenario.getBaseDate())
+            .findTopByTradeIdAndPricingDateOrderByValuationRunIdDesc(trade.getId(), scenario.getBaseDate())
             .orElse(null);
 
         BigDecimal baseMtm = (baseValuation != null) ? baseValuation.getMtmTotal() : BigDecimal.ZERO;
@@ -98,7 +98,7 @@ public class ScenarioService {
         ValuationContext scenarioContext = buildScenarioContext(trade, scenarioType, parameters);
 
         // Calculate scenario valuation
-        PricingEngine engine = pricingEngineFactory.getEngine(instrument.getInstrumentType());
+        PricingEngine engine = pricingEngineFactory.getEngine(instrument);
         ValuationResult scenarioValuation = engine.price(trade, instrument, scenarioContext);
 
         BigDecimal scenarioMtm = scenarioValuation.getMtmTotal();

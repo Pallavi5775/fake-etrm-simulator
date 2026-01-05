@@ -44,7 +44,14 @@ public class DealTemplateDto {
                 dto.setPricingModel(template.getPricingModel());
             } else {
                 String instrumentType = template.getInstrument().getInstrumentType().name();
-                dto.setPricingModel(instrumentType.contains("OPTION") ? "Black76" : "DCF");
+                String pricingModel = switch (instrumentType) {
+                    case "POWER_FORWARD" -> "POWER_FORWARD";
+                    case "OPTION" -> "Black76";
+                    case "RENEWABLE_PPA" -> "RENEWABLE_FORECAST";
+                    case "GAS_FORWARD", "COMMODITY_SWAP", "FREIGHT" -> "DCF";
+                    default -> "DCF";
+                };
+                dto.setPricingModel(pricingModel);
             }
         } else {
             // No instrument - use template values directly (may be null)

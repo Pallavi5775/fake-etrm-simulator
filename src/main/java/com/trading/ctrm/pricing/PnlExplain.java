@@ -1,5 +1,6 @@
 package com.trading.ctrm.pricing;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,12 +20,24 @@ public class PnlExplain {
     @Column(name = "trade_id", nullable = false)
     private Long tradeId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "trade_id", insertable = false, updatable = false)
+    @JsonIgnore
+    private com.trading.ctrm.trade.Trade trade;
+
     @Column(name = "pnl_date", nullable = false)
     private LocalDate pnlDate;
 
     // Total P&L
     @Column(name = "total_pnl", nullable = false, precision = 20, scale = 6)
     private BigDecimal totalPnl;
+
+    // Realized vs Unrealized P&L
+    @Column(name = "realized_pnl", precision = 20, scale = 6)
+    private BigDecimal realizedPnl = BigDecimal.ZERO;
+
+    @Column(name = "unrealized_pnl", precision = 20, scale = 6)
+    private BigDecimal unrealizedPnl = BigDecimal.ZERO;
 
     // Attribution by source
     @Column(name = "pnl_spot_move", precision = 20, scale = 6)
@@ -79,6 +92,12 @@ public class PnlExplain {
     public BigDecimal getTotalPnl() { return totalPnl; }
     public void setTotalPnl(BigDecimal totalPnl) { this.totalPnl = totalPnl; }
 
+    public BigDecimal getRealizedPnl() { return realizedPnl; }
+    public void setRealizedPnl(BigDecimal realizedPnl) { this.realizedPnl = realizedPnl; }
+
+    public BigDecimal getUnrealizedPnl() { return unrealizedPnl; }
+    public void setUnrealizedPnl(BigDecimal unrealizedPnl) { this.unrealizedPnl = unrealizedPnl; }
+
     public BigDecimal getPnlSpotMove() { return pnlSpotMove; }
     public void setPnlSpotMove(BigDecimal pnlSpotMove) { this.pnlSpotMove = pnlSpotMove; }
 
@@ -111,4 +130,7 @@ public class PnlExplain {
 
     public java.time.LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public com.trading.ctrm.trade.Trade getTrade() { return trade; }
+    public void setTrade(com.trading.ctrm.trade.Trade trade) { this.trade = trade; }
 }

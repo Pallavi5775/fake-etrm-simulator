@@ -1,0 +1,7 @@
+username,password,email,full_name,role,active
+admin,admin123,admin@ctrm-simulator.com,System Administrator,ADMIN,true
+risk_mgr,risk123,risk@ctrm-simulator.com,John Risk,RISK,true
+senior_trader,trader123,senior@ctrm-simulator.com,Sarah Trader,SENIOR_TRADER,true
+head_trader,head123,head@ctrm-simulator.com,Michael Head,HEAD_TRADER,true
+compliance,comp123,compliance@ctrm-simulator.com,Lisa Compliance,COMPLIANCE,true
+cfo,cfo123,cfo@ctrm-simulator.com,David CFO,CFO,true

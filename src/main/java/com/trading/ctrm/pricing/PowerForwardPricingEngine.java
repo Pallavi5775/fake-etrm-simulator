@@ -6,20 +6,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.trading.ctrm.instrument.Instrument;
-import com.trading.ctrm.trade.ForwardCurve;
-import com.trading.ctrm.trade.ForwardCurveRepository;
+import com.trading.ctrm.instrument.InstrumentType;
 import com.trading.ctrm.trade.Trade;
+import com.trading.ctrm.trade.EnumType.BuySell;
 import com.trading.ctrm.rules.ValuationContext;
+import com.trading.ctrm.rules.MarketContext;
 
 /**
  * Power Forward Pricing Engine - Uses forward curves for pricing
  */
 public class PowerForwardPricingEngine implements PricingEngine {
 
-    private final ForwardCurveRepository forwardCurveRepository;
+    private final MarketContext marketContext;
 
-    public PowerForwardPricingEngine(ForwardCurveRepository forwardCurveRepository) {
-        this.forwardCurveRepository = forwardCurveRepository;
+    public PowerForwardPricingEngine(MarketContext marketContext) {
+        this.marketContext = marketContext;
     }
 
     @Override
@@ -31,28 +32,55 @@ public class PowerForwardPricingEngine implements PricingEngine {
         long startTime = System.currentTimeMillis();
 
         // Extract contexts
+        var marketCtx = context.market();
         var pricingCtx = context.pricing();
         var riskCtx = context.risk();
 
-        // Use trade date as delivery date (or today if not set)
-        LocalDate deliveryDate = trade.getTradeDate() != null 
-            ? trade.getTradeDate() 
-            : LocalDate.now();
+        // Use valuation date from context as delivery date
+        LocalDate deliveryDate = context.valuationDate();
 
-        // Load forward curve price
-        ForwardCurve curve = forwardCurveRepository
-            .findLatestByInstrumentAndDeliveryDate(instrument, deliveryDate)
-            .orElseThrow(() -> new IllegalStateException(
+        // For quarterly forwards, adjust delivery date to quarter end
+        if (instrument.getInstrumentType() == InstrumentType.POWER_FORWARD && 
+            instrument.getInstrumentCode().contains("_Q")) {
+            String forwardCode = instrument.getInstrumentCode();
+            // Extract year from instrument code (e.g., POWER_BASELOAD_Q1_2025 -> 2025)
+            String yearStr = forwardCode.substring(forwardCode.lastIndexOf("_") + 1);
+            int year = Integer.parseInt(yearStr);
+            
+            if (forwardCode.contains("_Q1_")) {
+                // Q1 uses March 1 (first day of last month of Q1)
+                deliveryDate = LocalDate.of(year, 3, 1);
+            } else if (forwardCode.contains("_Q2_")) {
+                // Q2 uses June 1 (first day of last month of Q2)
+                deliveryDate = LocalDate.of(year, 6, 1);
+            } else if (forwardCode.contains("_Q3_")) {
+                // Q3 uses September 1 (first day of last month of Q3)
+                deliveryDate = LocalDate.of(year, 9, 1);
+            } else if (forwardCode.contains("_Q4_")) {
+                // Q4 uses December 1 (first day of last month of Q4)
+                deliveryDate = LocalDate.of(year, 12, 1);
+            }
+        }
+
+        // Use MarketContext to get forward curve price (handles option vs non-option routing)
+        BigDecimal marketPrice = marketContext.getForwardCurve(instrument, deliveryDate);
+        
+        if (marketPrice == null) {
+            throw new IllegalStateException(
                 "No forward curve found for instrument: " + instrument.getInstrumentCode() 
                 + " on " + deliveryDate
-            ));
+            );
+        }
 
-        BigDecimal marketPrice = BigDecimal.valueOf(curve.getPrice());
+        // Calculate signed quantity based on buy/sell
+        BigDecimal signedQty = trade.getBuySell() == BuySell.BUY 
+            ? trade.getQuantity() 
+            : trade.getQuantity().negate();
 
         // Calculate MTM components
         BigDecimal mtmTotal = marketPrice
                 .subtract(trade.getPrice())
-                .multiply(trade.getQuantity());
+                .multiply(signedQty);
 
         // Calculate Greeks if requested
         Map<String, BigDecimal> greeks = new HashMap<>();

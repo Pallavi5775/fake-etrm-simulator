@@ -1,0 +1,9 @@
+name,description,riskOwner,active
+POWER_TRADING,Power trading portfolio,John Smith,true
+GAS_TRADING,Gas trading portfolio,Mary Johnson,true
+RENEWABLE_TRADING,Renewable energy trading,Sarah Wilson,true
+COMMODITY_HEDGING,Commodity hedging portfolio,David Brown,true
+CARBON_TRADING,Carbon credits trading,Michael Davis,true
+ENERGY_PORTFOLIO,Combined energy portfolio,Lisa Garcia,true
+RISK_MANAGEMENT,Risk management portfolio,Robert Miller,true
+SPECULATION,Speculative trading,Emma Wilson,true

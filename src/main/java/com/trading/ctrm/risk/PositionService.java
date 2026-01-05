@@ -86,7 +86,7 @@ public class PositionService {
 
         // Get valuation
         Optional<ValuationResult> valuationOpt = valuationResultRepository
-            .findByTradeIdAndPricingDate(trade.getId(), positionDate);
+            .findTopByTradeIdAndPricingDateOrderByValuationRunIdDesc(trade.getId(), positionDate);
 
         BigDecimal mtm = valuationOpt.map(ValuationResult::getMtmTotal).orElse(BigDecimal.ZERO);
         BigDecimal delta = valuationOpt.map(ValuationResult::getDelta).orElse(BigDecimal.ZERO);

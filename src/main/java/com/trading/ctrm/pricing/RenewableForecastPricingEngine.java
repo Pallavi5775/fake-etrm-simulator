@@ -2,6 +2,7 @@ package com.trading.ctrm.pricing;
 
 import com.trading.ctrm.instrument.Instrument;
 import com.trading.ctrm.trade.Trade;
+import com.trading.ctrm.trade.EnumType.BuySell;
 import com.trading.ctrm.rules.ValuationContext;
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -19,7 +20,10 @@ public class RenewableForecastPricingEngine implements PricingEngine {
         List<BigDecimal> forecastPrices = marketCtx != null && marketCtx.forecastPrices() != null ? marketCtx.forecastPrices() : List.of(trade.getPrice());
         BigDecimal avgForecast = forecastPrices.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
                 .divide(BigDecimal.valueOf(forecastPrices.size()), BigDecimal.ROUND_HALF_UP);
-        BigDecimal mtm = avgForecast.subtract(trade.getPrice()).multiply(trade.getQuantity());
+        BigDecimal signedQty = trade.getBuySell() == BuySell.BUY 
+            ? trade.getQuantity() 
+            : trade.getQuantity().negate();
+        BigDecimal mtm = avgForecast.subtract(trade.getPrice()).multiply(signedQty);
 
         Map<String, BigDecimal> greeks = new HashMap<>();
         greeks.put("delta", trade.getQuantity());

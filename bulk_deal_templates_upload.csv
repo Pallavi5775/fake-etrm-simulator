@@ -1,6 +1,0 @@
-templateName,instrumentCode,defaultQuantity,defaultPrice,autoApprovalAllowed,mtmApprovalThreshold,commodity,unit,currency
-Renewable Power Forward,PWR-Q1-25,1000,45.00,true,100000,POWER,MWh,EUR
-High Volume Power Forward,PWR-Q2-25,5000,42.50,false,500000,POWER,MWh,EUR
-Gas Swing Option,GAS-JAN-25,500,30.50,false,50000,GAS,MMBtu,USD
-Power Call Option,PWR-CALL-25,2000,25.00,false,200000,POWER,MWh,EUR
-Q4 Power Forward,PWR-Q4-25,3000,48.00,true,300000,POWER,MWh,EUR

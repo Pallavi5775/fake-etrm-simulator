@@ -111,14 +111,37 @@ public class PricingContext {
      */
     public static PricingContext fromTrade(Trade trade) {
         String instrumentType = trade.getInstrument().getInstrumentType().name();
-        String pricingModel = instrumentType.contains("OPTION") ? "Black76" : "DCF";
+        String pricingModel = switch (instrumentType) {
+            case "POWER_FORWARD" -> "POWER_FORWARD";
+            case "OPTION" -> "Black76";
+            case "RENEWABLE_PPA" -> "RENEWABLE_FORECAST";
+            case "GAS_FORWARD", "COMMODITY_SWAP", "FREIGHT" -> "DCF";
+            default -> "DCF";
+        };
         String settlementType = instrumentType.contains("PHYSICAL") ? "PHYSICAL" : "CASH";
-        
+
+        // For options, calculate years to expiry
+        Double yearsToExpiry = null;
+        if ("OPTION".equals(instrumentType) && trade.getInstrument() instanceof com.trading.ctrm.instrument.CommodityOptionInstrument) {
+            com.trading.ctrm.instrument.CommodityOptionInstrument optionInstrument =
+                (com.trading.ctrm.instrument.CommodityOptionInstrument) trade.getInstrument();
+            if (optionInstrument.getExpiryDate() != null) {
+                java.time.LocalDate tradeDate = trade.getTradeDate() != null ? trade.getTradeDate() : java.time.LocalDate.now();
+                yearsToExpiry = java.time.temporal.ChronoUnit.DAYS.between(tradeDate, optionInstrument.getExpiryDate()) / 365.0;
+            }
+        }
+
         return new PricingContext(
                 pricingModel,
                 "ACT_365",
                 "CONTINUOUS",
-                settlementType
+                settlementType,
+                null, // forwardPrice - will be looked up from market data
+                null, // volatility - will be looked up from market data
+                null, // discountRate - will be looked up from market data
+                yearsToExpiry,
+                null, // cashFlows
+                null  // cashFlowTimes
         );
     }
 

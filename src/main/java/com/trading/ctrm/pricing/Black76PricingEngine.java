@@ -4,6 +4,7 @@ import com.trading.ctrm.instrument.Instrument;
 import com.trading.ctrm.trade.Trade;
 import com.trading.ctrm.rules.ValuationContext;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,13 +20,57 @@ public class Black76PricingEngine implements PricingEngine {
         var marketCtx = context.market();
         var riskCtx = context.risk();
 
+        // For options, get forward price from underlying instrument
+        Instrument pricingInstrument = instrument;
+        LocalDate forwardDate = marketCtx.pricingDate();
+        
+        if (instrument instanceof com.trading.ctrm.instrument.CommodityOptionInstrument) {
+            // For options, use expiry date as the forward date
+            com.trading.ctrm.instrument.CommodityOptionInstrument option = 
+                (com.trading.ctrm.instrument.CommodityOptionInstrument) instrument;
+            if (option.getExpiryDate() != null) {
+                forwardDate = option.getExpiryDate();
+            }
+            // For options, we need the underlying forward price
+            // For now, try to find a forward instrument with similar code
+            String optionCode = instrument.getInstrumentCode();
+            // Simple heuristic: replace OPTION with FORWARD and remove CALL/PUT
+            String forwardCode = optionCode.replace("OPTION", "FORWARD").replace("_CALL", "").replace("_PUT", "");
+            // Try to find the forward instrument in the database via market context
+            // For now, assume the forward curve uses the same instrument code pattern
+            pricingInstrument = instrument; // Fallback to option instrument
+        }
+
         // Inputs (should be provided in context/pricing config)
-        double F = pricingCtx != null && pricingCtx.forwardPrice() != null ? pricingCtx.forwardPrice().doubleValue() : 100.0;
-        double K = trade.getPrice() != null ? trade.getPrice().doubleValue() : 100.0;
-        double sigma = pricingCtx != null && pricingCtx.volatility() != null ? pricingCtx.volatility().doubleValue() : 0.2;
-        double r = pricingCtx != null && pricingCtx.discountRate() != null ? pricingCtx.discountRate().doubleValue() : 0.05;
-        double T = pricingCtx != null && pricingCtx.yearsToExpiry() != null ? pricingCtx.yearsToExpiry() : 1.0;
-        boolean isCall = trade.getBuySell() != null && trade.getBuySell().name().equalsIgnoreCase("BUY");
+        double F = marketCtx != null ? 
+            marketCtx.getForwardCurve(pricingInstrument, forwardDate) != null ? 
+                marketCtx.getForwardCurve(pricingInstrument, forwardDate).doubleValue() : 100.0 : 100.0;
+        // Get strike price from option instrument or trade price
+        double K = 100.0; // default
+        if (instrument instanceof com.trading.ctrm.instrument.CommodityOptionInstrument) {
+            com.trading.ctrm.instrument.CommodityOptionInstrument option = 
+                (com.trading.ctrm.instrument.CommodityOptionInstrument) instrument;
+            if (option.getStrikePrice() != null) {
+                K = option.getStrikePrice().doubleValue();
+            }
+        }
+        if (K == 100.0 && trade.getPrice() != null) {
+            K = trade.getPrice().doubleValue(); // fallback to trade price if no strike
+        }
+        double sigma = marketCtx != null ? marketCtx.getVolatility(instrument, marketCtx.pricingDate()) != null ? 
+            Math.max(0.001, marketCtx.getVolatility(instrument, marketCtx.pricingDate()).doubleValue()) : 0.2 : 0.2;
+        double r = marketCtx != null ? marketCtx.getYieldCurve(instrument, marketCtx.pricingDate()) != null ? 
+            marketCtx.getYieldCurve(instrument, marketCtx.pricingDate()).doubleValue() : 0.05 : 0.05;
+        double T = Math.max(0.001, pricingCtx != null && pricingCtx.yearsToExpiry() != null ? pricingCtx.yearsToExpiry() : 1.0);
+        // Determine if it's a call or put option
+        boolean isCall = true; // default to call
+        if (instrument instanceof com.trading.ctrm.instrument.CommodityOptionInstrument) {
+            com.trading.ctrm.instrument.CommodityOptionInstrument option = 
+                (com.trading.ctrm.instrument.CommodityOptionInstrument) instrument;
+            if (option.getOptionType() != null) {
+                isCall = "CALL".equalsIgnoreCase(option.getOptionType());
+            }
+        }
         double quantity = trade.getQuantity() != null ? trade.getQuantity().doubleValue() : 1.0;
 
         // Black76 formula

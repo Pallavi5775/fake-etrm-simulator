@@ -51,6 +51,7 @@ public class TradeService {
     private final TradeLegRepository tradeLegRepository;
     private final ForwardCurveRepository forwardCurveRepository;
     private final TradeEventRepository tradeEventRepository;
+    private final com.trading.ctrm.rules.MarketContext marketContext;
 
     public TradeService(
             TradeRepository tradeRepository,
@@ -62,7 +63,8 @@ public class TradeService {
             ApprovalExecutionService approvalExecutionService,
             TradeLegRepository tradeLegRepository,
             ForwardCurveRepository forwardCurveRepository,
-            TradeEventRepository tradeEventRepository
+            TradeEventRepository tradeEventRepository,
+            com.trading.ctrm.rules.MarketContext marketContext
     ) {
         this.tradeRepository = tradeRepository;
         this.instrumentRepository = instrumentRepository;
@@ -74,6 +76,7 @@ public class TradeService {
         this.tradeLegRepository = tradeLegRepository;
         this.forwardCurveRepository = forwardCurveRepository;
         this.tradeEventRepository = tradeEventRepository;
+        this.marketContext = marketContext;
     }
 
     public Trade bookTrade(TradeEventRequest req) {
@@ -255,10 +258,29 @@ public Trade bookFromTemplate(
      */
     private ValuationContext buildValuationContext(Trade trade, ValuationConfigRequest config) {
         if (config == null) {
-            // Use defaults
+            // Use defaults - create market context with trade date
+            com.trading.ctrm.rules.MarketContext marketCtx = new com.trading.ctrm.rules.MarketContext(
+                marketContext.marketDataSet(),
+                trade.getTradeDate() != null ? trade.getTradeDate() : java.time.LocalDate.now(),
+                marketContext.curveSet(),
+                marketContext.fxScenario(),
+                trade.getInstrument().getInstrumentType().name() + "_VOL",
+                marketContext.forecastPrices(),
+                marketContext.getForwardCurveRepository(),
+                marketContext.getYieldCurveRepository(),
+                marketContext.getVolatilityRepository(),
+                marketContext.getForecastPriceRepository(),
+                marketContext.getMarketPriceRepository(),
+                marketContext.getWeatherDataRepository(),
+                marketContext.getGenerationForecastRepository(),
+                marketContext.getVolatilitySurfaceRepository(),
+                marketContext.getPriceCurveRepository(),
+                marketContext.getMarketCurveRepository()
+            );
+
             return ValuationContext.builder()
                 .trade(TradeContext.fromTrade(trade))
-                .market(MarketContext.fromTrade(trade))
+                .market(marketCtx)
                 .pricing(PricingContext.fromTrade(trade))
                 .risk(RiskContext.fromTrade(trade))
                 .accounting(AccountingContext.fromTrade(trade))
@@ -268,16 +290,28 @@ public Trade bookFromTemplate(
         }
 
         // Use custom values from UI
+        com.trading.ctrm.rules.MarketContext marketCtx = new com.trading.ctrm.rules.MarketContext(
+            config.getMarketDataSet() != null ? config.getMarketDataSet() : marketContext.marketDataSet(),
+            config.getPricingDate() != null ? config.getPricingDate() : (trade.getTradeDate() != null ? trade.getTradeDate() : java.time.LocalDate.now()),
+            config.getCurveSet() != null ? config.getCurveSet() : marketContext.curveSet(),
+            config.getFxScenario() != null ? config.getFxScenario() : marketContext.fxScenario(),
+            config.getVolatilitySurface() != null ? config.getVolatilitySurface() : (trade.getInstrument().getInstrumentType().name() + "_VOL"),
+            marketContext.forecastPrices(),
+            marketContext.getForwardCurveRepository(),
+            marketContext.getYieldCurveRepository(),
+            marketContext.getVolatilityRepository(),
+            marketContext.getForecastPriceRepository(),
+            marketContext.getMarketPriceRepository(),
+            marketContext.getWeatherDataRepository(),
+            marketContext.getGenerationForecastRepository(),
+            marketContext.getVolatilitySurfaceRepository(),
+            marketContext.getPriceCurveRepository(),
+            marketContext.getMarketCurveRepository()
+        );
+
         return ValuationContext.builder()
             .trade(TradeContext.fromTrade(trade))
-            .market(MarketContext.fromTrade(
-                trade,
-                config.getMarketDataSet(),
-                config.getPricingDate(),
-                config.getCurveSet(),
-                config.getFxScenario(),
-                config.getVolatilitySurface()
-            ))
+            .market(marketCtx)
             .pricing(PricingContext.fromTrade(
                 trade,
                 config.getPricingModel(),

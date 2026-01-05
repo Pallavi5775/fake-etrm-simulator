@@ -11,6 +11,7 @@ public class CommodityOptionInstrument extends Instrument {
     private java.math.BigDecimal strikePrice;
     private java.time.LocalDate expiryDate;
     private String optionType; // CALL / PUT
+    private String underlyingType; // FUTURES or FORWARD
 
     public CommodityOptionInstrument() {
         setInstrumentType(InstrumentType.OPTION);
@@ -38,6 +39,14 @@ public class CommodityOptionInstrument extends Instrument {
 
     public void setOptionType(String optionType) {
         this.optionType = optionType;
+    }
+
+    public String getUnderlyingType() {
+        return underlyingType;
+    }
+
+    public void setUnderlyingType(String underlyingType) {
+        this.underlyingType = underlyingType;
     }
 }
 

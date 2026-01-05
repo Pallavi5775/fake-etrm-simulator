@@ -175,9 +175,7 @@ public class TradeLifecycleEngine {
                 .build();
 
         PricingEngine engine =
-                pricingEngineFactory.getEngine(
-                        instrument.getInstrumentType()
-                );
+                pricingEngineFactory.getEngine(instrument);
 
         // Get comprehensive valuation result
         ValuationResult result = engine.price(trade, instrument, valuationContext);

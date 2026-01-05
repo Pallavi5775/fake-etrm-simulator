@@ -167,7 +167,7 @@ public class DealTemplateController {
      * Upload deal templates from CSV file
      * POST /api/templates/upload-csv
      * 
-     * CSV Format: templateName,instrumentCode,defaultQuantity,defaultPrice,autoApprovalAllowed,mtmApprovalThreshold,commodity,unit,currency
+     * CSV Format: templateName,commodity_name,instrumentType,instrumentCode,pricingModel,autoApprovalAllowed,defaultQuantity,defaultPrice,unit,currency,mtmApprovalThreshold
      */
     @PostMapping("/upload-csv")
     @ResponseStatus(HttpStatus.CREATED)
@@ -248,11 +248,12 @@ public class DealTemplateController {
                         template.setMtmApprovalThreshold(new BigDecimal(mtmThreshold));
                     }
                     
-                    String commodity = row.get("commodity");
-                    if (commodity != null && !commodity.isEmpty()) {
-                        Commodity commodityEntity = commodityRepository.findByName(commodity);
+                    // Handle commodity_name (different from commodity)
+                    String commodityName = row.get("commodity_name");
+                    if (commodityName != null && !commodityName.isEmpty()) {
+                        Commodity commodityEntity = commodityRepository.findByName(commodityName);
                         if (commodityEntity == null) {
-                            errors.add("Line " + lineNumber + ": Commodity not found: " + commodity);
+                            errors.add("Line " + lineNumber + ": Commodity not found: " + commodityName);
                             continue;
                         }
                         template.setCommodity(commodityEntity);
@@ -266,6 +267,17 @@ public class DealTemplateController {
                     String currency = row.get("currency");
                     if (currency != null && !currency.isEmpty()) {
                         template.setCurrency(currency);
+                    }
+
+                    // Set instrument type and pricing model from CSV
+                    String instrumentType = row.get("instrumentType");
+                    if (instrumentType != null && !instrumentType.isEmpty()) {
+                        template.setInstrumentType(instrumentType);
+                    }
+
+                    String pricingModel = row.get("pricingModel");
+                    if (pricingModel != null && !pricingModel.isEmpty()) {
+                        template.setPricingModel(pricingModel);
                     }
 
                     DealTemplate saved = templateRepository.save(template);

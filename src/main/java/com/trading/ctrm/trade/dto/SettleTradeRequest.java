@@ -1,9 +1,11 @@
 package com.trading.ctrm.trade.dto;
 
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 public class SettleTradeRequest {
     
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate settlementDate;
     private String settledBy;
     private String notes;

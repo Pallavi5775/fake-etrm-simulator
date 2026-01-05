@@ -1,5 +1,7 @@
 package com.trading.ctrm.rules;
 
+import java.time.LocalDate;
+
 public class ValuationContext {
 
     private final TradeContext trade;
@@ -9,6 +11,7 @@ public class ValuationContext {
     private final AccountingContext accounting;
     private final CreditContext credit;
     private final AuditContext audit;
+    private final LocalDate valuationDate;
 
     private ValuationContext(Builder builder) {
         this.trade = builder.trade;
@@ -18,6 +21,7 @@ public class ValuationContext {
         this.accounting = builder.accounting;
         this.credit = builder.credit;
         this.audit = builder.audit;
+        this.valuationDate = builder.valuationDate;
     }
 
     public TradeContext trade() { return trade; }
@@ -27,6 +31,7 @@ public class ValuationContext {
     public AccountingContext accounting() { return accounting; }
     public CreditContext credit() { return credit; }
     public AuditContext audit() { return audit; }
+    public LocalDate valuationDate() { return valuationDate; }
 
     public static Builder builder() {
         return new Builder();
@@ -40,6 +45,7 @@ public class ValuationContext {
         private AccountingContext accounting;
         private CreditContext credit;
         private AuditContext audit;
+        private LocalDate valuationDate;
 
         public Builder trade(TradeContext trade) {
             this.trade = trade;
@@ -73,6 +79,11 @@ public class ValuationContext {
 
         public Builder audit(AuditContext audit) {
             this.audit = audit;
+            return this;
+        }
+
+        public Builder valuationDate(LocalDate valuationDate) {
+            this.valuationDate = valuationDate;
             return this;
         }
 

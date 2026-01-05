@@ -54,15 +54,13 @@ public class PnlAttributionService {
             com.trading.ctrm.trade.TradeStatus.APPROVED,
             com.trading.ctrm.trade.TradeStatus.BOOKED
         );
-        List<Trade> trades = new java.util.ArrayList<>();
-        for (com.trading.ctrm.trade.TradeStatus status : eligibleStatuses) {
-            trades.addAll(tradeRepository.findByStatus(status));
-        }
+        
+        List<Trade> trades = tradeRepository.findByStatusIn(eligibleStatuses);
         log.info("Total trades to calculate P&L for (statuses: {}): {}", eligibleStatuses, trades.size());
 
         for (Trade trade : trades) {
             try {
-                log.info("Calculating P&L for trade: {}", trade.getTradeId());
+                log.info("Calculating P&L for trade: {} (database id: {})", trade.getTradeId(), trade.getId());
                 calculateTradePnl(trade, pnlDate, previousDate);
             } catch (Exception e) {
                 log.error("Failed to calculate P&L for trade: {}", trade.getTradeId(), e);
@@ -77,27 +75,65 @@ public class PnlAttributionService {
      */
     @Transactional
     public PnlExplain calculateTradePnl(Trade trade, LocalDate pnlDate, LocalDate previousDate) {
-        log.debug("Calculating P&L for trade: {}", trade.getTradeId());
+        log.info("Calculating P&L for trade: {} (T0: {}, T1: {})", trade.getTradeId(), previousDate, pnlDate);
 
         try {
-            // Calculate MTM using forward curve pricing
-            BigDecimal mtmT1 = pricingService.calculateMTM(trade, pnlDate);
-            BigDecimal mtmT0 = pricingService.calculateMTM(trade, previousDate);
+            // Find stored valuation results for T0 (previous date) and T1 (current date)
+            Optional<ValuationResult> valuationT0 = valuationResultRepository.findTopByTradeIdAndPricingDateOrderByValuationRunIdDesc(trade.getId(), previousDate);
+            Optional<ValuationResult> valuationT1 = valuationResultRepository.findTopByTradeIdAndPricingDateOrderByValuationRunIdDesc(trade.getId(), pnlDate);
+
+            log.info("Trade {} - Looking for valuations: tradeId={}, T0_date={}, T1_date={}", 
+                     trade.getTradeId(), trade.getId(), previousDate, pnlDate);
+            log.debug("Trade {} - Database query results: T0_found={}, T1_found={}", 
+                     trade.getTradeId(), valuationT0.isPresent(), valuationT1.isPresent());
+            
+            if (valuationT0.isPresent()) {
+                log.debug("Trade {} - T0 valuation details: id={}, mtm={}, date={}", 
+                         trade.getTradeId(), valuationT0.get().getResultId(), valuationT0.get().getMtmTotal(), valuationT0.get().getPricingDate());
+            }
+            if (valuationT1.isPresent()) {
+                log.debug("Trade {} - T1 valuation details: id={}, mtm={}, date={}", 
+                         trade.getTradeId(), valuationT1.get().getResultId(), valuationT1.get().getMtmTotal(), valuationT1.get().getPricingDate());
+            }
+
+            BigDecimal mtmT0 = valuationT0.map(ValuationResult::getMtmTotal).orElse(BigDecimal.ZERO);
+            BigDecimal mtmT1 = valuationT1.map(ValuationResult::getMtmTotal).orElse(BigDecimal.ZERO);
             
             BigDecimal totalPnl = mtmT1.subtract(mtmT0);
+
+            log.info("Trade {} P&L calculation - T0 MTM: {}, T1 MTM: {}, P&L: {}", 
+                     trade.getTradeId(), mtmT0, mtmT1, totalPnl);
 
             // Create P&L explain
             PnlExplain pnl = new PnlExplain();
             pnl.setTradeId(trade.getId());
+            pnl.setTrade(trade); // Set the trade reference for status access
             pnl.setPnlDate(pnlDate);
             pnl.setTotalPnl(totalPnl);
+            
+            // Set realized vs unrealized P&L based on trade status
+            if (trade.getStatus() == com.trading.ctrm.trade.TradeStatus.SETTLED) {
+                pnl.setRealizedPnl(totalPnl);
+                pnl.setUnrealizedPnl(BigDecimal.ZERO);
+            } else {
+                pnl.setRealizedPnl(BigDecimal.ZERO);
+                pnl.setUnrealizedPnl(totalPnl);
+            }
+            
             pnl.setPnlSpotMove(totalPnl); // All P&L attributed to spot move for now
             pnl.setUnexplained(BigDecimal.ZERO);
+            
+            // Set valuation references
+            valuationT0.ifPresent(val -> pnl.setValuationT0(val.getResultId()));
+            valuationT1.ifPresent(val -> pnl.setValuationT1(val.getResultId()));
 
             // Save P&L explain
             pnlExplainRepository.save(pnl);
 
-            log.debug("Trade {} P&L: {}", trade.getTradeId(), totalPnl);
+            log.info("Trade {} P&L saved with valuation refs - T0: {}, T1: {}", 
+                     trade.getTradeId(), 
+                     valuationT0.map(ValuationResult::getResultId).orElse(null),
+                     valuationT1.map(ValuationResult::getResultId).orElse(null));
             return pnl;
             
         } catch (Exception e) {
@@ -126,5 +162,55 @@ public class PnlAttributionService {
      */
     public List<PnlExplain> getHighUnexplainedPnl(LocalDate pnlDate, BigDecimal threshold) {
         return pnlExplainRepository.findHighUnexplainedPnl(pnlDate, threshold);
+    }
+
+    /**
+     * Get top performing trades (winners) for a date
+     */
+    public List<PnlExplain> getTopWinners(LocalDate pnlDate, int limit) {
+        List<PnlExplain> allPnl = pnlExplainRepository.findByPnlDate(pnlDate);
+        return allPnl.stream()
+            .filter(pnl -> pnl.getTotalPnl() != null)
+            .sorted((a, b) -> b.getTotalPnl().compareTo(a.getTotalPnl()))
+            .limit(limit)
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Get worst performing trades (losers) for a date
+     */
+    public List<PnlExplain> getTopLosers(LocalDate pnlDate, int limit) {
+        List<PnlExplain> allPnl = pnlExplainRepository.findByPnlDate(pnlDate);
+        return allPnl.stream()
+            .filter(pnl -> pnl.getTotalPnl() != null)
+            .sorted((a, b) -> a.getTotalPnl().compareTo(b.getTotalPnl()))
+            .limit(limit)
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Get realized P&L total for a date (from settled trades)
+     */
+    public BigDecimal getRealizedPnl(LocalDate pnlDate) {
+        List<PnlExplain> pnlExplains = pnlExplainRepository.findByPnlDate(pnlDate);
+        return pnlExplains.stream()
+            .filter(pnl -> pnl.getTrade() != null && pnl.getTrade().getStatus() == com.trading.ctrm.trade.TradeStatus.SETTLED)
+            .map(PnlExplain::getTotalPnl)
+            .filter(java.util.Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Get unrealized P&L total for a date (from open positions)
+     */
+    public BigDecimal getUnrealizedPnl(LocalDate pnlDate) {
+        List<PnlExplain> pnlExplains = pnlExplainRepository.findByPnlDate(pnlDate);
+        return pnlExplains.stream()
+            .filter(pnl -> pnl.getTrade() != null && pnl.getTrade().getStatus() != com.trading.ctrm.trade.TradeStatus.SETTLED)
+            .filter(pnl -> pnl.getTrade().getStatus() != com.trading.ctrm.trade.TradeStatus.CANCELLED)
+            .filter(pnl -> pnl.getTrade().getStatus() != com.trading.ctrm.trade.TradeStatus.REJECTED)
+            .map(PnlExplain::getTotalPnl)
+            .filter(java.util.Objects::nonNull)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

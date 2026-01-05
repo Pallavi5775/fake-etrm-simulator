@@ -1,0 +1,7 @@
+role_name,display_name,description,active
+ADMIN,Administrator,Full system access with all permissions including user management, system configuration, and audit oversight,true
+RISK,Risk Manager,Monitor and manage risk exposures, set risk limits, and generate risk reports,true
+SENIOR_TRADER,Senior Trader,Execute complex trades, manage large positions, and lead trading strategies,true
+HEAD_TRADER,Head Trader,Oversee all trading activities, manage trader teams, and set trading policies,true
+COMPLIANCE,Compliance Officer,Ensure regulatory compliance, review trades, and manage compliance reporting,true
+CFO,CFO,Chief Financial Officer with access to financial reports, treasury management, and executive oversight,true

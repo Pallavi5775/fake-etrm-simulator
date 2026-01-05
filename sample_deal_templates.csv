@@ -1,4 +1,0 @@
-id,auto_approval_allowed,default_price,default_quantity,mtm_approval_threshold,instrument_id,instrument_type,unit,commodity,currency,pricing_model,template_name
-1,true,45.00,1000,100000,101,FORWARD,MWh,POWER,USD,POWER_FORWARD,Renewable Power Forward
-2,false,30.50,500,50000,102,OPTION,MMBtu,GAS,USD,Black76,Gas Swing Option
-3,false,50.00,1000000,500000,103,FORWARD,MWh,POWER,USD,POWER_FORWARD,High Value Test Template

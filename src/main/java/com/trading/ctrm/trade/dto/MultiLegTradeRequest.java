@@ -2,6 +2,7 @@ package com.trading.ctrm.trade.dto;
 
 import com.trading.ctrm.trade.StrategyType;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.util.List;
 
 public class MultiLegTradeRequest {
@@ -10,6 +11,7 @@ public class MultiLegTradeRequest {
     private String portfolio;
     private String counterparty;
     private String createdByUser;
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate tradeDate;
     private List<TradeLegRequest> legs;
     private String notes;

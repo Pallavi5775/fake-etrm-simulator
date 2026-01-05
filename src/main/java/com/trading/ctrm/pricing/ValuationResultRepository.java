@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface ValuationResultRepository extends JpaRepository<ValuationResult, Long> {
     
-    Optional<ValuationResult> findByTradeIdAndPricingDate(Long tradeId, LocalDate pricingDate);
+    Optional<ValuationResult> findTopByTradeIdAndPricingDateOrderByValuationRunIdDesc(Long tradeId, LocalDate pricingDate);
     
     List<ValuationResult> findByPricingDate(LocalDate pricingDate);
     

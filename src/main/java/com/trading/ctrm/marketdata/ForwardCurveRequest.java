@@ -1,10 +1,12 @@
 package com.trading.ctrm.marketdata;
 
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 public class ForwardCurveRequest {
     
     private String instrumentCode;
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate deliveryDate;
     private double price;
 

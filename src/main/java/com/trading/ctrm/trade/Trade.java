@@ -86,6 +86,16 @@ public class Trade {
     protected Trade() {
     }
 
+    // Factory method for creating trades programmatically
+    public static Trade create() {
+        try {
+            Trade trade = Trade.class.getDeclaredConstructor().newInstance();
+            return trade;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create Trade instance", e);
+        }
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

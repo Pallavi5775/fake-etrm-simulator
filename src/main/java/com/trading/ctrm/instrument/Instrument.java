@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.hibernate.Hibernate;
 
 @Entity
 @Table(name = "instruments")
@@ -44,7 +45,21 @@ public abstract class Instrument {
 
     @JsonProperty("commodity_name")
     public String getCommodity() {
-        return commodity != null ? commodity.getName() : null;
+        if (commodity == null) {
+            return null;
+        }
+        // Check if the commodity is initialized (not a lazy proxy)
+        if (Hibernate.isInitialized(commodity)) {
+            return commodity.getName();
+        } else {
+            // If not initialized, try to access it safely
+            try {
+                return commodity.getName();
+            } catch (Exception e) {
+                // If lazy loading fails, return null
+                return null;
+            }
+        }
     }
 
     /**

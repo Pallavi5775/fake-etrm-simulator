@@ -251,10 +251,10 @@ public class InstrumentController {
                             
                             powerForward.setCurrency(row.getOrDefault("currency", "EUR"));
                             powerForward.setUnit(row.getOrDefault("unit", "MWh"));
-                            if (!row.get("startDate").isEmpty()) {
+                            if (row.get("startDate") != null && !row.get("startDate").isEmpty()) {
                                 powerForward.setStartDate(LocalDate.parse(row.get("startDate")));
                             }
-                            if (!row.get("endDate").isEmpty()) {
+                            if (row.get("endDate") != null && !row.get("endDate").isEmpty()) {
                                 powerForward.setEndDate(LocalDate.parse(row.get("endDate")));
                             }
                             instrument = powerForward;
@@ -275,13 +275,41 @@ public class InstrumentController {
                             
                             gasForward.setCurrency(row.getOrDefault("currency", "USD"));
                             gasForward.setUnit(row.getOrDefault("unit", "MMBtu"));
-                            if (!row.get("deliveryDate").isEmpty()) {
+                            if (row.get("deliveryDate") != null && !row.get("deliveryDate").isEmpty()) {
                                 gasForward.setDeliveryDate(LocalDate.parse(row.get("deliveryDate")));
                             }
                             instrument = gasForward;
                             break;
 
-                        case "COMMODITY_OPTION":
+                        case "COMMODITY_SWAP":
+                            CommoditySwapInstrument swap = new CommoditySwapInstrument();
+                            swap.setInstrumentCode(instrumentCode);
+                            
+                            // Look up commodity by name
+                            String swapCommodityName = row.getOrDefault("commodity", "COAL");
+                            Commodity swapCommodity = commodityRepository.findByName(swapCommodityName);
+                            if (swapCommodity == null) {
+                                errors.add("Line " + lineNumber + ": Commodity not found: " + swapCommodityName);
+                                continue;
+                            }
+                            swap.setCommodity(swapCommodity);
+                            
+                            swap.setCurrency(row.getOrDefault("currency", "USD"));
+                            swap.setUnit(row.getOrDefault("unit", "MT"));
+                            if (row.get("startDate") != null && !row.get("startDate").isEmpty()) {
+                                swap.setStartDate(LocalDate.parse(row.get("startDate")));
+                            }
+                            if (row.get("endDate") != null && !row.get("endDate").isEmpty()) {
+                                swap.setEndDate(LocalDate.parse(row.get("endDate")));
+                            }
+                            if (row.get("fixedPrice") != null && !row.get("fixedPrice").isEmpty()) {
+                                swap.setFixedPrice(new BigDecimal(row.get("fixedPrice")));
+                            }
+                            swap.setFloatingPriceIndex(row.getOrDefault("floatingPriceIndex", "API2"));
+                            instrument = swap;
+                            break;
+
+                        case "OPTION":
                             CommodityOptionInstrument option = new CommodityOptionInstrument();
                             option.setInstrumentCode(instrumentCode);
                             
@@ -296,14 +324,53 @@ public class InstrumentController {
                             
                             option.setCurrency(row.getOrDefault("currency", "EUR"));
                             option.setUnit(row.getOrDefault("unit", "MWh"));
-                            if (!row.get("strikePrice").isEmpty()) {
+                            if (row.get("strikePrice") != null && !row.get("strikePrice").isEmpty()) {
                                 option.setStrikePrice(new BigDecimal(row.get("strikePrice")));
                             }
-                            if (!row.get("expiryDate").isEmpty()) {
+                            if (row.get("expiryDate") != null && !row.get("expiryDate").isEmpty()) {
                                 option.setExpiryDate(LocalDate.parse(row.get("expiryDate")));
                             }
                             option.setOptionType(row.getOrDefault("optionType", "CALL"));
                             instrument = option;
+                            break;
+
+                        case "RENEWABLE_PPA":
+                            RenewablePPAInstrument ppa = new RenewablePPAInstrument();
+                            ppa.setInstrumentCode(instrumentCode);
+                            
+                            // Look up commodity by name
+                            String ppaCommodityName = row.getOrDefault("commodity", "POWER");
+                            Commodity ppaCommodity = commodityRepository.findByName(ppaCommodityName);
+                            if (ppaCommodity == null) {
+                                errors.add("Line " + lineNumber + ": Commodity not found: " + ppaCommodityName);
+                                continue;
+                            }
+                            ppa.setCommodity(ppaCommodity);
+                            
+                            ppa.setCurrency(row.getOrDefault("currency", "EUR"));
+                            ppa.setUnit(row.getOrDefault("unit", "MWh"));
+                            ppa.setTechnology(row.getOrDefault("technology", "WIND"));
+                            ppa.setForecastCurve(row.getOrDefault("forecastCurve", "WIND_FORECAST_2025"));
+                            ppa.setSettlementType(row.getOrDefault("settlementType", "PHYSICAL"));
+                            instrument = ppa;
+                            break;
+
+                        case "FREIGHT":
+                            FreightInstrument freightInstrument = new FreightInstrument();
+                            freightInstrument.setInstrumentCode(instrumentCode);
+
+                            // Look up commodity by name
+                            String freightCommodityName = row.getOrDefault("commodity", "FREIGHT");
+                            Commodity freightCommodity = commodityRepository.findByName(freightCommodityName);
+                            if (freightCommodity == null) {
+                                errors.add("Line " + lineNumber + ": Commodity not found: " + freightCommodityName);
+                                continue;
+                            }
+                            freightInstrument.setCommodity(freightCommodity);
+
+                            freightInstrument.setCurrency(row.getOrDefault("currency", "USD"));
+                            freightInstrument.setUnit(row.getOrDefault("unit", "DAY"));
+                            instrument = freightInstrument;
                             break;
 
                         default:

@@ -1,3 +1,5 @@
+
+        
 package com.trading.ctrm.trade;
 
 import org.springframework.data.domain.Pageable;
@@ -40,6 +42,12 @@ public interface TradeRepository
             String portfolio,
             TradeStatus status
     );
+
+    @Query("SELECT t FROM Trade t JOIN FETCH t.instrument WHERE t.status IN :statuses")
+    List<Trade> findByStatusIn(List<TradeStatus> statuses);
+
+    @Query("SELECT t FROM Trade t JOIN FETCH t.instrument WHERE t.portfolio = :portfolio AND t.status IN :statuses")
+    List<Trade> findByPortfolioAndStatusIn(String portfolio, List<TradeStatus> statuses);
 
 @Query("""
 select t from Trade t

@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import com.trading.ctrm.util.JsonAttributeConverter;
+import jakarta.persistence.Convert;
 
 /**
  * Valuation Result - comprehensive pricing output (Endur-style)
@@ -22,11 +24,17 @@ public class ValuationResult {
     @Column(name = "trade_id", nullable = false)
     private Long tradeId;
 
+    @Column(name = "instrument_id")
+    private Long instrumentId;
+
     @Column(name = "valuation_run_id")
     private Long valuationRunId;
 
     @Column(name = "pricing_date", nullable = false)
     private java.time.LocalDate pricingDate;
+
+    @Column(name = "currency", length = 3)
+    private String currency;
 
     // ===== MTM Components =====
     @Column(name = "mtm_total", precision = 20, scale = 6)
@@ -65,13 +73,13 @@ public class ValuationResult {
     private BigDecimal stressTestResult;
 
     // ===== Context (stored as JSON) =====
-    @Column(name = "market_context", columnDefinition = "jsonb")
+    @Column(name = "market_context", columnDefinition = "text")
     private String marketContext;
 
-    @Column(name = "pricing_context", columnDefinition = "jsonb")
+    @Column(name = "pricing_context", columnDefinition = "text")
     private String pricingContext;
 
-    @Column(name = "risk_context", columnDefinition = "jsonb")
+    @Column(name = "risk_context", columnDefinition = "text")
     private String riskContext;
 
     // ===== Metadata =====
@@ -154,11 +162,17 @@ public class ValuationResult {
     public Long getTradeId() { return tradeId; }
     public void setTradeId(Long tradeId) { this.tradeId = tradeId; }
 
+    public Long getInstrumentId() { return instrumentId; }
+    public void setInstrumentId(Long instrumentId) { this.instrumentId = instrumentId; }
+
     public Long getValuationRunId() { return valuationRunId; }
     public void setValuationRunId(Long valuationRunId) { this.valuationRunId = valuationRunId; }
 
     public java.time.LocalDate getPricingDate() { return pricingDate; }
     public void setPricingDate(java.time.LocalDate pricingDate) { this.pricingDate = pricingDate; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 
     public BigDecimal getMtmTotal() { return mtmTotal; }
     public void setMtmTotal(BigDecimal mtmTotal) { this.mtmTotal = mtmTotal; }

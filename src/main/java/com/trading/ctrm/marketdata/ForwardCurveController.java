@@ -1,3 +1,4 @@
+
 package com.trading.ctrm.marketdata;
 
 import com.trading.ctrm.instrument.Instrument;
@@ -13,6 +14,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+
+class BulkForwardCurveRequest {
+    private List<ForwardCurveRequest> points;
+
+    public List<ForwardCurveRequest> getPoints() {
+        return points;
+    }
+
+    public void setPoints(List<ForwardCurveRequest> points) {
+        this.points = points;
+    }
+}
 
 @RestController
 @RequestMapping("/api/forward-curves")
@@ -58,37 +71,38 @@ public class ForwardCurveController {
     /**
      * Bulk upload forward curve points
      * POST /api/forward-curves/bulk
-     * Body: [
+     * Body: {"points": [
      *   {"instrumentCode": "PWR-Q1-25", "deliveryDate": "2026-01-02", "price": 60.50},
      *   {"instrumentCode": "PWR-Q1-25", "deliveryDate": "2026-01-03", "price": 61.00}
-     * ]
+     * ]}
      */
     @PostMapping("/bulk")
     public ResponseEntity<BulkUploadResponse> bulkUpload(
-            @RequestBody List<ForwardCurveRequest> requests) {
+            @RequestBody BulkForwardCurveRequest request) {
         
+        List<ForwardCurveRequest> requests = request.getPoints();
         int created = 0;
         int updated = 0;
         int errors = 0;
 
-        for (ForwardCurveRequest request : requests) {
+        for (ForwardCurveRequest req : requests) {
             try {
                 Instrument instrument = instrumentRepository
-                        .findOptionalByInstrumentCode(request.getInstrumentCode())
+                        .findOptionalByInstrumentCode(req.getInstrumentCode())
                         .orElseThrow(() -> new RuntimeException(
-                                "Instrument not found: " + request.getInstrumentCode()));
+                                "Instrument not found: " + req.getInstrumentCode()));
 
                 boolean exists = curveRepository
-                        .findByInstrumentAndDeliveryDate(instrument, request.getDeliveryDate())
+                        .findByInstrumentAndDeliveryDate(instrument, req.getDeliveryDate())
                         .isPresent();
 
                 ForwardCurve curve = curveRepository
-                        .findByInstrumentAndDeliveryDate(instrument, request.getDeliveryDate())
+                        .findByInstrumentAndDeliveryDate(instrument, req.getDeliveryDate())
                         .orElse(new ForwardCurve());
 
                 curve.setInstrument(instrument);
-                curve.setDeliveryDate(request.getDeliveryDate());
-                curve.setPrice(request.getPrice());
+                curve.setDeliveryDate(req.getDeliveryDate());
+                curve.setPrice(req.getPrice());
                 curve.setCurveDate(LocalDate.now());
 
                 curveRepository.save(curve);
@@ -110,10 +124,20 @@ public class ForwardCurveController {
     }
 
     /**
-     * CSV upload forward curve points
-     * POST /api/forward-curves/upload-csv
-     * CSV Format: instrumentCode,deliveryDate,price
+     * Create or update a single forward curve point (alternative to bulk)
+     * POST /api/forward-curves/single
+     * Body: {"instrumentCode": "PWR-Q1-25", "deliveryDate": "2026-01-02", "price": 60.50}
      */
+
+
+    
+    @PostMapping("/single")
+    public ResponseEntity<BulkUploadResponse> singleUpload(
+            @RequestBody ForwardCurveRequest singleRequest) {
+        BulkForwardCurveRequest bulkRequest = new BulkForwardCurveRequest();
+        bulkRequest.setPoints(List.of(singleRequest));
+        return bulkUpload(bulkRequest);
+    }
     @PostMapping("/upload-csv")
     public ResponseEntity<BulkUploadResponse> uploadCsv(@RequestParam("file") MultipartFile file) {
         int created = 0;

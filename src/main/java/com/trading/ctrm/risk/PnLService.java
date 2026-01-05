@@ -10,6 +10,9 @@ import com.trading.ctrm.trade.TradeLegRepository;
 import com.trading.ctrm.trade.ForwardCurve;
 import com.trading.ctrm.trade.ForwardCurveRepository;
 import com.trading.ctrm.trade.EnumType.BuySell;
+import com.trading.ctrm.instrument.InstrumentType;
+import com.trading.ctrm.yieldcurve.YieldCurveRepository;
+import com.trading.ctrm.yieldcurve.YieldCurve;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -21,14 +24,17 @@ public class PnLService {
     private final ValuationHistoryRepository valuationHistoryRepository;
     private final TradeLegRepository tradeLegRepository;
     private final ForwardCurveRepository forwardCurveRepository;
+    private final YieldCurveRepository yieldCurveRepository;
 
     public PnLService(
             ValuationHistoryRepository valuationHistoryRepository,
             TradeLegRepository tradeLegRepository,
-            ForwardCurveRepository forwardCurveRepository) {
+            ForwardCurveRepository forwardCurveRepository,
+            YieldCurveRepository yieldCurveRepository) {
         this.valuationHistoryRepository = valuationHistoryRepository;
         this.tradeLegRepository = tradeLegRepository;
         this.forwardCurveRepository = forwardCurveRepository;
+        this.yieldCurveRepository = yieldCurveRepository;
     }
 
     public BigDecimal calculatePnL(Long tradeId) {
@@ -59,17 +65,41 @@ public class PnLService {
         BigDecimal totalMtm = BigDecimal.ZERO;
 
         for (TradeLeg leg : legs) {
-            // Get forward curve for leg's instrument and delivery date
+            // Get market price for leg's instrument and delivery date
             LocalDate deliveryDate = leg.getDeliveryDate() != null ? 
                 leg.getDeliveryDate() : trade.getTradeDate();
             
-            ForwardCurve curve = forwardCurveRepository
-                .findLatestByInstrumentAndDeliveryDate(leg.getInstrument(), deliveryDate)
-                .orElseThrow(() -> new RuntimeException(
-                    "Forward curve not found for " + leg.getInstrument().getInstrumentCode() + 
-                    " on " + deliveryDate));
+            BigDecimal marketPrice;
+            if (leg.getInstrument().getInstrumentType() == InstrumentType.POWER_FORWARD) {
+                // Use yield curve repository for power forwards
+                String curveName = leg.getInstrument().getInstrumentCode();
+                marketPrice = yieldCurveRepository.findAll().stream()
+                    .filter(yc -> yc.getCurveName().equalsIgnoreCase(curveName))
+                    .filter(yc -> yc.getDate().equals(deliveryDate))
+                    .findFirst()
+                    .map(YieldCurve::getYield)
+                    .map(BigDecimal::valueOf)
+                    .orElse(null);
+                if (marketPrice == null) {
+                    throw new RuntimeException(
+                        "Yield curve not found for " + curveName + " on " + deliveryDate);
+                }
+                // For power forwards, use the yield rate directly as price
+                marketPrice = leg.getPrice().multiply(BigDecimal.ONE.add(marketPrice.divide(BigDecimal.valueOf(100))));
+            } else {
+                // Use forward curve repository for other instruments
+                marketPrice = forwardCurveRepository
+                    .findLatestByInstrumentAndDeliveryDate(leg.getInstrument(), deliveryDate)
+                    .map(ForwardCurve::getPrice)
+                    .map(BigDecimal::valueOf)
+                    .orElse(null);
+                if (marketPrice == null) {
+                    throw new RuntimeException(
+                        "Forward curve not found for " + leg.getInstrument().getInstrumentCode() + 
+                        " on " + deliveryDate);
+                }
+            }
 
-            BigDecimal marketPrice = BigDecimal.valueOf(curve.getPrice());
             BigDecimal legMtm = marketPrice.subtract(leg.getPrice()).multiply(leg.getQuantity());
             
             // Apply BUY/SELL direction

@@ -15,6 +15,9 @@ public class FieldResolver {
             case "portfolio" -> trade.portfolio();
             case "instrumenttype", "instrument_type" -> trade.instrumentType();
             case "tradeid", "trade_id" -> trade.tradeId();
+            case "commodity" -> trade.commodity();
+            case "mtm" -> trade.mtm();
+            case "price" -> trade.price();
             default -> throw new IllegalArgumentException(
                 "Unsupported field: " + fieldCode
             );

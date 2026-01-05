@@ -3,6 +3,7 @@ package com.trading.ctrm.pricing;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.slf4j.Logger;
@@ -27,18 +28,15 @@ public class PnlAttributionController {
     }
 
     /**
-     * Get P&L attribution breakdown for a given date
+     * Calculate daily P&L for all trades
      */
-    @GetMapping("/{date}/attribution")
-    public ResponseEntity<Map<String, Object>> getPnlAttribution(@PathVariable String date) {
-        LocalDate pnlDate = LocalDate.parse(date);
-        // For now, just return the explained/unexplained breakdown for all trades
-        var details = pnlAttributionService.getPnlForDate(pnlDate);
-        var totalPnl = pnlAttributionService.getTotalPnl(pnlDate);
-        Map<String, Object> response = new HashMap<>();
-        response.put("pnlDate", pnlDate);
-        response.put("totalPnl", totalPnl);
-        response.put("details", details);
-        return ResponseEntity.ok(response);
+    @PostMapping("/daily-calculate")
+    public ResponseEntity<String> calculateDailyPnl() {
+        try {
+            pnlAttributionService.calculateDailyPnl(LocalDate.now());
+            return ResponseEntity.ok("Daily P&L calculation completed successfully");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Failed to calculate P&L: " + e.getMessage());
+        }
     }
 }

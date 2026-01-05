@@ -3,6 +3,7 @@ package com.trading.ctrm.trade.dto;
 import com.trading.ctrm.trade.EnumType.BuySell;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 /**
  * Request DTO for booking a trade from a template with optional valuation config
@@ -15,6 +16,7 @@ public class BookFromTemplateRequest {
     private String counterparty;
     private String portfolio;
     private String createdByUser;
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate tradeDate;
     private ValuationConfigRequest valuationConfig;
 

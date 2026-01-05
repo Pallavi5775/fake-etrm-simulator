@@ -18,6 +18,22 @@ public interface ForwardCurveRepository
             LocalDate deliveryDate
     );
 
+    @Query("SELECT fc FROM ForwardCurve fc WHERE fc.instrument.instrumentCode = :instrumentCode AND fc.deliveryDate = :deliveryDate ORDER BY fc.curveDate DESC")
+    Optional<ForwardCurve> findByInstrumentCodeAndDeliveryDate(
+            String instrumentCode,
+            LocalDate deliveryDate
+    );
+
+    // Debug query to check what data exists
+    @Query("SELECT fc FROM ForwardCurve fc WHERE fc.instrument.instrumentCode = :instrumentCode")
+    List<ForwardCurve> findByInstrumentCode(String instrumentCode);
+
+    @Query("SELECT fc FROM ForwardCurve fc WHERE fc.deliveryDate = :deliveryDate")
+    List<ForwardCurve> findByDeliveryDate(LocalDate deliveryDate);
+
+    @Query("SELECT fc FROM ForwardCurve fc WHERE fc.instrument.instrumentCode = :instrumentCode AND fc.deliveryDate = :deliveryDate")
+    List<ForwardCurve> findAllByInstrumentCodeAndDeliveryDate(String instrumentCode, LocalDate deliveryDate);
+
     @Query("SELECT fc FROM ForwardCurve fc WHERE fc.instrument = :instrument AND fc.deliveryDate = :deliveryDate ORDER BY fc.curveDate DESC LIMIT 1")
     Optional<ForwardCurve> findLatestByInstrumentAndDeliveryDate(
             Instrument instrument,

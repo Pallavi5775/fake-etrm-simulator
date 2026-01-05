@@ -128,3 +128,79 @@ Result:
 ////
 
 Bulk upload for forward curve is not working
+
+
+
+
+-- Insert statements for counterparties table
+-- Insert statements for portfolios table
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('POWER_TRADING', 'Power trading portfolio', 'John Smith', true);
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('GAS_TRADING', 'Gas trading portfolio', 'Mary Johnson', true);
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('RENEWABLE_TRADING', 'Renewable energy trading', 'Sarah Wilson', true);
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('COMMODITY_HEDGING', 'Commodity hedging portfolio', 'David Brown', true);
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('CARBON_TRADING', 'Carbon credits trading', 'Michael Davis', true);
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('ENERGY_PORTFOLIO', 'Combined energy portfolio', 'Lisa Garcia', true);
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('RISK_MANAGEMENT', 'Risk management portfolio', 'Robert Miller', true);
+
+INSERT INTO ctrm.portfolios (name, description, risk_owner, active) VALUES
+('SPECULATION', 'Speculative trading', 'Emma Wilson', true);
+
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Shell Energy', 'AAA', 'NL', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('BP Trading', 'AA', 'GB', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Total Energies', 'AA', 'FR', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Enel Trading', 'A+', 'IT', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Iberdrola', 'A+', 'ES', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('EDF Trading', 'AA', 'FR', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('RWE Supply', 'AA', 'DE', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Vattenfall', 'AA', 'SE', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Statkraft', 'AA', 'NO', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('E.ON Energy', 'AA', 'DE', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Fortum', 'AA', 'FI', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('SSE Energy', 'A+', 'GB', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Endesa', 'A+', 'ES', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Gas Natural', 'A+', 'ES', true);
+
+INSERT INTO ctrm.counterparties (name, credit_rating, country, active) VALUES
+('Engie Trading', 'AA', 'FR', true);

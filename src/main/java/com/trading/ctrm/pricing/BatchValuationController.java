@@ -34,6 +34,18 @@ public class BatchValuationController {
     }
 
     /**
+     * Test endpoint to check if controller is working
+     */
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, Object>> testEndpoint() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "ok");
+        response.put("message", "BatchValuationController is working");
+        response.put("timestamp", java.time.LocalDateTime.now());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Run batch valuation
      */
     @PostMapping("/batch")
@@ -67,34 +79,157 @@ public class BatchValuationController {
     }
 
     /**
-     * Calculate daily P&L
+     * Get valuation results for a specific date
      */
-    @PostMapping("/pnl/calculate")
-    public ResponseEntity<Map<String, Object>> calculatePnl(@RequestBody PnlCalculationRequest request) {
-        // Default to today if pnlDate is null
-        LocalDate pnlDate = request.getPnlDate() != null ? request.getPnlDate() : LocalDate.now();
-        log.info("Calculating P&L for date: {}", pnlDate);
-
-        pnlAttributionService.calculateDailyPnl(pnlDate);
-
-        BigDecimal totalPnl = pnlAttributionService.getTotalPnl(pnlDate);
-        List<PnlExplain> pnlDetails = pnlAttributionService.getPnlForDate(pnlDate);
-
+    @GetMapping("/batch/results/{date}")
+    public ResponseEntity<Map<String, Object>> getValuationResults(@PathVariable String date) {
+        LocalDate valuationDate = LocalDate.parse(date);
+        
+        List<ValuationResult> results = batchValuationService.getValuationResultsForDate(valuationDate);
+        
         Map<String, Object> response = new HashMap<>();
-        response.put("pnlDate", pnlDate);
-        response.put("totalPnl", totalPnl);
-        response.put("tradeCount", pnlDetails.size());
-        response.put("details", pnlDetails);
-
+        response.put("valuationDate", valuationDate);
+        response.put("resultCount", results.size());
+        response.put("results", results);
+        
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Get P&L for a specific date
+     * Get all valuation results (for debugging)
+     */
+    @GetMapping("/batch/results")
+    public ResponseEntity<Map<String, Object>> getAllValuationResults() {
+        List<ValuationResult> allResults = batchValuationService.getAllValuationResults();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalResults", allResults.size());
+        response.put("results", allResults);
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get valuation results for a specific trade
+     */
+    @GetMapping("/batch/results/trade/{tradeId}")
+    public ResponseEntity<Map<String, Object>> getValuationResultsForTrade(@PathVariable Long tradeId) {
+        List<ValuationResult> results = batchValuationService.getValuationResultsForTrade(tradeId);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("tradeId", tradeId);
+        response.put("resultCount", results.size());
+        response.put("results", results);
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get all trades (for debugging P&L issues)
+     */
+    @GetMapping("/trades")
+    public ResponseEntity<Map<String, Object>> getAllTrades() {
+        List<com.trading.ctrm.trade.Trade> trades = batchValuationService.getAllTrades();
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("tradeCount", trades.size());
+        response.put("trades", trades.stream().map(trade -> Map.of(
+            "id", trade.getId(),
+            "tradeId", trade.getTradeId(),
+            "instrumentCode", trade.getInstrument() != null ? trade.getInstrument().getInstrumentCode() : null,
+            "status", trade.getStatus(),
+            "tradeDate", trade.getTradeDate()
+        )).collect(java.util.stream.Collectors.toList()));
+        
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Calculate daily P&L
+     */
+    @PostMapping("/pnl/calculate")
+    public ResponseEntity<Map<String, Object>> calculatePnl(@RequestBody(required = false) PnlCalculationRequest request) {
+        try {
+            // Default to today if request is null or pnlDate is null
+            LocalDate pnlDate = LocalDate.now();
+            if (request != null && request.getPnlDate() != null) {
+                pnlDate = request.getPnlDate();
+            }
+            
+            log.info("Calculating P&L for date: {}", pnlDate);
+
+            pnlAttributionService.calculateDailyPnl(pnlDate);
+
+            BigDecimal totalPnl = pnlAttributionService.getTotalPnl(pnlDate);
+            List<PnlExplain> pnlDetails = pnlAttributionService.getPnlForDate(pnlDate);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("pnlDate", pnlDate);
+            response.put("totalPnl", totalPnl);
+            response.put("tradeCount", pnlDetails.size());
+            response.put("details", pnlDetails);
+            response.put("status", "success");
+
+            log.info("P&L calculation completed for {} trades, total P&L: {}", pnlDetails.size(), totalPnl);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Failed to calculate P&L", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("errorType", e.getClass().getSimpleName());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
+     * Calculate daily P&L (simple GET version for testing)
+     */
+    @GetMapping("/pnl/calculate/today")
+    public ResponseEntity<Map<String, Object>> calculatePnlToday() {
+        try {
+            LocalDate pnlDate = LocalDate.now();
+            log.info("Calculating P&L for today: {}", pnlDate);
+
+            pnlAttributionService.calculateDailyPnl(pnlDate);
+
+            BigDecimal totalPnl = pnlAttributionService.getTotalPnl(pnlDate);
+            List<PnlExplain> pnlDetails = pnlAttributionService.getPnlForDate(pnlDate);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("pnlDate", pnlDate);
+            response.put("totalPnl", totalPnl);
+            response.put("tradeCount", pnlDetails.size());
+            response.put("details", pnlDetails);
+            response.put("status", "success");
+
+            log.info("P&L calculation completed for {} trades, total P&L: {}", pnlDetails.size(), totalPnl);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Failed to calculate P&L", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("errorType", e.getClass().getSimpleName());
+            return ResponseEntity.internalServerError().body(errorResponse);
+        }
+    }
+
+    /**
+     * Get P&L for a specific date (calculates if not exists)
      */
     @GetMapping("/pnl/{date}")
     public ResponseEntity<Map<String, Object>> getPnl(@PathVariable String date) {
         LocalDate pnlDate = LocalDate.parse(date);
+        
+        // Check if P&L already exists for this date
+        List<PnlExplain> existingPnl = pnlAttributionService.getPnlForDate(pnlDate);
+        if (existingPnl.isEmpty()) {
+            log.info("No P&L data found for date {}, calculating now...", pnlDate);
+            pnlAttributionService.calculateDailyPnl(pnlDate);
+        }
         
         BigDecimal totalPnl = pnlAttributionService.getTotalPnl(pnlDate);
         List<PnlExplain> pnlDetails = pnlAttributionService.getPnlForDate(pnlDate);
@@ -102,6 +237,8 @@ public class BatchValuationController {
         Map<String, Object> response = new HashMap<>();
         response.put("pnlDate", pnlDate);
         response.put("totalPnl", totalPnl);
+        response.put("realizedPnl", pnlAttributionService.getRealizedPnl(pnlDate));
+        response.put("unrealizedPnl", pnlAttributionService.getUnrealizedPnl(pnlDate));
         response.put("tradeCount", pnlDetails.size());
         response.put("details", pnlDetails);
 
@@ -117,6 +254,27 @@ public class BatchValuationController {
             @RequestParam(defaultValue = "1000") BigDecimal threshold) {
         LocalDate pnlDate = LocalDate.parse(date);
         return ResponseEntity.ok(pnlAttributionService.getHighUnexplainedPnl(pnlDate, threshold));
+    }
+
+    /**
+     * Get top P&L performers for a date
+     */
+    @GetMapping("/pnl/{date}/top-performers")
+    public ResponseEntity<Map<String, Object>> getTopPerformers(
+            @PathVariable String date,
+            @RequestParam(defaultValue = "10") int limit) {
+        LocalDate pnlDate = LocalDate.parse(date);
+
+        List<PnlExplain> topWinners = pnlAttributionService.getTopWinners(pnlDate, limit);
+        List<PnlExplain> topLosers = pnlAttributionService.getTopLosers(pnlDate, limit);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("pnlDate", pnlDate);
+        response.put("topWinners", topWinners);
+        response.put("topLosers", topLosers);
+        response.put("limit", limit);
+
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -213,4 +371,5 @@ public class BatchValuationController {
         public String getCreatedBy() { return createdBy; }
         public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
     }
+    
 }
